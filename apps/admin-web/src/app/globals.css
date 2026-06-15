@@ -1,0 +1,123 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-white text-text text-body antialiased;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    font-family: var(--font-lato), system-ui, sans-serif;
+    font-style: italic;
+  }
+}
+
+@layer components {
+  .brand-container {
+    @apply mx-auto w-full max-w-brand px-4;
+  }
+
+  .brand-page-title {
+    @apply text-2xl font-semibold tracking-tight text-slate-800 sm:text-3xl;
+  }
+
+  .brand-page-title::after {
+    content: '';
+    display: block;
+    width: 3rem;
+    height: 3px;
+    margin-top: 0.75rem;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, #3381cb 0%, #0061be 100%);
+  }
+
+  .brand-page-title-left::after {
+    margin-left: 0;
+  }
+
+  .brand-page-title:not(.brand-page-title-left)::after {
+    margin-inline: auto;
+  }
+
+  .brand-section-title {
+    @apply text-xl font-semibold tracking-tight text-slate-800;
+  }
+
+  .brand-section-label {
+    @apply text-xs font-medium tracking-wide text-primary;
+  }
+
+  .brand-hero-caption {
+    @apply inline-flex max-w-md flex-col rounded-2xl border border-white/30 bg-slate-900/40 px-5 py-4 shadow-[0_8px_32px_rgba(15,23,42,0.2)] backdrop-blur-md sm:max-w-lg sm:px-6 sm:py-5;
+  }
+
+  .brand-hero-caption-label {
+    @apply text-[11px] font-medium tracking-[0.18em] text-blue-100/90;
+  }
+
+  .brand-hero-caption-title {
+    @apply mt-1.5 text-2xl font-semibold tracking-tight text-white sm:text-3xl;
+  }
+
+  .brand-panel-title {
+    @apply text-base font-semibold text-slate-800;
+  }
+
+  .brand-nav-link {
+    @apply text-base font-medium uppercase tracking-wide text-nav transition-colors hover:text-primary;
+  }
+
+  .brand-nav-link-active {
+    @apply text-primary;
+  }
+
+  .brand-phone-link {
+    @apply text-xl font-semibold text-primary no-underline transition-colors hover:text-text;
+  }
+
+  .brand-phone {
+    @apply text-xl font-semibold text-primary no-underline hover:text-text;
+  }
+
+  .table-container {
+    @apply overflow-x-auto rounded-none border border-brand-border bg-white;
+  }
+
+  .data-table {
+    @apply min-w-full divide-y divide-gray-200 text-sm;
+  }
+
+  .data-table th {
+    @apply bg-gray-50 px-4 py-3 text-left font-semibold text-gray-700;
+  }
+
+  .data-table td {
+    @apply px-4 py-3 text-gray-600;
+  }
+
+  .data-table tbody tr:hover {
+    @apply bg-gray-50;
+  }
+
+  .dashboard-table .data-table th {
+    @apply border-0 bg-transparent px-4 py-3 text-xs font-semibold tracking-wide text-gray-500 normal-case;
+  }
+
+  .dashboard-table .data-table td {
+    @apply border-0 px-4 py-3.5 text-sm text-gray-700;
+  }
+
+  .dashboard-table .data-table tbody tr {
+    @apply border-b border-gray-100 transition-colors last:border-0;
+  }
+
+  .dashboard-table .data-table tbody tr:hover {
+    @apply bg-primary/5;
+  }
+
+  .dashboard-table .table-container {
+    @apply overflow-hidden rounded-xl border-0 bg-transparent;
+  }
+}

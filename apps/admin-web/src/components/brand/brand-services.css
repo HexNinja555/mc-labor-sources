@@ -1,0 +1,289 @@
+/* Ported from MC Labor Sources reference (mclabor.css + skeleton.css) */
+
+.services {
+  width: 100%;
+  display: block;
+  text-align: center;
+  background-color: #eaeaea;
+  padding-top: 20px;
+  overflow-x: auto;
+}
+
+.services .container {
+  width: 1200px;
+  min-width: 1200px;
+  margin: 0 auto;
+}
+
+.services h1 {
+  color: #303030;
+  font-size: 48px;
+  font-weight: 700;
+  text-transform: uppercase;
+  display: inline-block;
+  margin: 0;
+}
+
+.services h1::after {
+  content: '';
+  width: 60%;
+  float: left;
+  height: 1px;
+  background-color: #000;
+  margin-top: 15px;
+  margin-left: 20%;
+}
+
+.services .mid-bg {
+  background-image: url(/brand/services/mid-bg.png);
+  height: 660px;
+  background-position: center top;
+  background-repeat: no-repeat;
+  position: relative;
+  display: block;
+  width: 1200px;
+}
+
+.services .mid-bg-1 {
+  background-image: url(/brand/services/mid-bg-1.png);
+}
+
+.services .mid-bg .heading {
+  width: 200px;
+  white-space: nowrap;
+}
+
+.services .mid-bg .agency {
+  position: absolute;
+  left: 34px;
+  top: 130px;
+  width: 335px;
+}
+
+.services .mid-bg .agency::after,
+.services .mid-bg .agency-payroll::after,
+.services .mid-bg .agency-funding::after,
+.services .mid-bg .placement::after,
+.services .mid-bg .staffing::after,
+.services .mid-bg .apply::after {
+  content: '';
+  display: table;
+  clear: both;
+}
+
+.services .mid-bg .agency .heading {
+  font-size: 20px;
+  text-transform: uppercase;
+  font-weight: 700;
+  float: left;
+  text-align: right;
+  padding-top: 34px;
+  padding-right: 10px;
+}
+
+.services .mid-bg .agency .service-img {
+  float: right;
+  width: 125px;
+}
+
+.services .mid-bg .agency-payroll {
+  position: absolute;
+  left: 104px;
+  top: -3px;
+  width: 335px;
+}
+
+.services .mid-bg .agency-payroll .heading {
+  font-size: 16px;
+  text-transform: uppercase;
+  font-weight: 700;
+  float: left;
+  text-align: right;
+  padding-top: 34px;
+  padding-right: 10px;
+}
+
+.services .mid-bg .agency-payroll .service-img {
+  float: right;
+  width: 125px;
+}
+
+.services .mid-bg .agency-payroll .service-img img {
+  width: 80%;
+}
+
+.services .mid-bg .agency-funding {
+  position: absolute;
+  left: 96px;
+  top: 287px;
+  width: 335px;
+}
+
+.services .mid-bg .agency-funding .heading {
+  font-size: 16px;
+  text-transform: uppercase;
+  font-weight: 700;
+  float: left;
+  text-align: right;
+  padding-top: 34px;
+  padding-right: 10px;
+}
+
+.services .mid-bg .agency-funding .service-img {
+  float: right;
+  width: 125px;
+}
+
+.services .mid-bg .agency-funding .service-img img {
+  width: 80%;
+}
+
+.services .mid-bg .placement {
+  position: absolute;
+  right: 35px;
+  top: 0;
+  width: 335px;
+}
+
+.services .mid-bg .placement .heading {
+  font-size: 20px;
+  text-transform: uppercase;
+  font-weight: 700;
+  float: right;
+  text-align: left;
+  padding-top: 29px;
+  padding-left: 10px;
+}
+
+.services .mid-bg .placement .service-img {
+  float: left;
+  width: 125px;
+}
+
+.services .mid-bg .staffing {
+  position: absolute;
+  right: 30px;
+  top: 262px;
+  width: 335px;
+}
+
+.services .mid-bg .staffing .heading {
+  font-size: 20px;
+  text-transform: uppercase;
+  font-weight: 700;
+  float: right;
+  text-align: left;
+  padding-top: 29px;
+  padding-left: 10px;
+}
+
+.services .mid-bg .staffing .service-img {
+  float: left;
+  width: 125px;
+}
+
+.services .mid-bg .apply {
+  position: absolute;
+  left: calc(50% - 57px);
+  top: 412px;
+  width: 125px;
+}
+
+.services .mid-bg .apply .heading {
+  font-size: 20px;
+  text-transform: uppercase;
+  font-weight: 700;
+  float: right;
+  padding-top: 9px;
+  width: 100%;
+  text-align: center;
+  white-space: normal;
+}
+
+.services .mid-bg .apply .service-img {
+  float: left;
+  width: 125px;
+}
+
+.services .mid-bg .service-img img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.services .mobile-bg {
+  display: none;
+}
+
+@media only screen and (max-width: 767px) {
+  .services {
+    overflow-x: hidden;
+  }
+
+  .services .container {
+    width: auto;
+    min-width: 0;
+    margin: 0 15px;
+  }
+
+  .services h1 {
+    font-size: 30px;
+  }
+
+  .services .mid-bg {
+    background: none;
+    display: none;
+  }
+
+  .services .mobile-bg {
+    display: block;
+  }
+
+  .services .mobile-bg .service-block {
+    width: 100%;
+    float: left;
+    margin-bottom: 10px;
+  }
+
+  .services .mobile-bg .service-block::after {
+    content: '';
+    display: table;
+    clear: both;
+  }
+
+  .services .mobile-bg .heading {
+    font-size: 16px;
+    text-transform: uppercase;
+    font-weight: 700;
+    text-align: left;
+    line-height: 77px;
+    padding-left: 20px;
+    width: 75%;
+    float: left;
+    box-sizing: border-box;
+    white-space: normal;
+  }
+
+  .services .mobile-bg .heading a {
+    font-size: 16px;
+    color: #303030;
+    text-decoration: none;
+  }
+
+  .services .mobile-bg .service-img {
+    float: left;
+    width: 25%;
+  }
+
+  .services .mobile-bg .service-img img {
+    width: 100%;
+    display: block;
+  }
+}
+
+@media only screen and (min-width: 480px) and (max-width: 767px) {
+  .services .container {
+    width: 420px;
+    margin: 0 auto;
+  }
+}
