@@ -56,7 +56,3 @@ export function isAdminRole(role: string) {
 export function isCustomerRole(role: string) {
   return role === UserRole.CUSTOMER;
 }
-
-export function isSupervisorRole(role: string) {
-  return role === UserRole.SUPERVISOR;
-}

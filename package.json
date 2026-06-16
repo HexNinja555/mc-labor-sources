@@ -4,6 +4,7 @@
   "scripts": {
     "dev": "pnpm --filter @mc-labor/admin-web dev",
     "mob": "pnpm --filter @mc-labor/mobile start",
+    "mob:clear": "pnpm --filter @mc-labor/mobile exec expo start --clear",
     "build": "pnpm --filter @mc-labor/shared build && pnpm --filter @mc-labor/admin-web build",
     "clean": "node -e \"const fs=require('fs');['apps/admin-web/.next','packages/shared/dist'].forEach(p=>{try{fs.rmSync(p,{recursive:true,force:true});console.log('removed',p)}catch(e){}})\"",
     "setup:check": "node scripts/check-supabase-env.mjs",

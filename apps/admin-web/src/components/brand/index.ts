@@ -6,5 +6,4 @@ export { BrandJobSiteCard } from './BrandJobSiteCard';
 export { BrandLogo } from './BrandLogo';
 export { BrandPageTitle } from './BrandPageTitle';
 export { BrandPanel, BrandPanelTitle } from './BrandPanel';
-export { BrandServicesHome } from './BrandServicesHome';
 export { PhoneIcon } from './PhoneIcon';

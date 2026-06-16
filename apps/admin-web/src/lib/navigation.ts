@@ -1,8 +1,5 @@
 import type { NavItem } from '@/lib/navigation-types';
 
-export type { NavItem, NavLink } from '@/lib/navigation-types';
-export { isNavGroupActive, isNavLinkActive } from '@/lib/navigation-types';
-
 export const adminNavItems: NavItem[] = [
   { label: 'Home', href: '/dashboard' },
   {

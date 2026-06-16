@@ -10,4 +10,3 @@ export const BRAND_PHONE = '800.439.3360';
 export const BRAND_PHONE_HREF = 'tel:8004393360';
 export const BRAND_EMAIL = 'info@mclabor.com';
 export const BRAND_EMAIL_HREF = 'mailto:info@mclabor.com';
-export const BRAND_CONTAINER_MAX = 1200;
