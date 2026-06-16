@@ -3,5 +3,15 @@ export {
   PortalRecordsPanel,
   PortalSummaryStat,
   portalFieldClassName,
+  portalFormFieldClassName,
 } from './PortalComponents';
-export { DateTimeCell, PersonCell, YesNoCell, HoursCell } from './PortalTableCells';
+export {
+  DateTimeCell,
+  DateCell,
+  PersonCell,
+  YesNoCell,
+  HoursCell,
+  TitleCell,
+  LinkCell,
+  ActionCell,
+} from './PortalTableCells';

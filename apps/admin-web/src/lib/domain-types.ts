@@ -85,21 +85,101 @@ export interface AttendanceLog {
   jobSite?: { id: string; name: string };
 }
 
+export interface TimesheetEntry {
+  id: string;
+  timesheetId: string;
+  workDate: string;
+  startTime: string;
+  endTime: string;
+  breakMinutes: number;
+  hours: string | number;
+  notes: string | null;
+}
+
 export interface Timesheet {
   id: string;
   employeeId: string;
   customerId: string;
   jobSiteId: string;
+  assignmentId?: string | null;
+  workDate?: string | null;
+  weekStartDate?: string | null;
+  weekEndDate?: string | null;
   totalHours: string | number;
+  notes?: string | null;
   status: string;
+  createdAt?: string;
   employee?: { id: string; firstName: string; lastName: string };
+  customer?: { id: string; companyName: string };
   jobSite?: { id: string; name: string };
+  entries?: TimesheetEntry[];
   signature?: {
+    id?: string;
     foremanName: string;
+    foremanEmail?: string | null;
     signatureImageUrl: string;
+    signedAt?: string;
     sentToCustomerOffice: boolean;
     sentToMcLaborOffice: boolean;
   };
+}
+
+export interface JobOrder {
+  id: string;
+  orderNumber: string;
+  customerId: string;
+  jobSiteId: string;
+  employeeId: string | null;
+  title: string;
+  description: string | null;
+  startDate: string;
+  startTime: string | null;
+  requiredPosition: string | null;
+  instructions: string | null;
+  safetyNotes: string | null;
+  status: string;
+  sentAt: string | null;
+  acknowledgedAt: string | null;
+  createdById: string;
+  createdAt?: string;
+  employee?: { id: string; firstName: string; lastName: string };
+  customer?: { id: string; companyName: string };
+  jobSite?: { id: string; name: string };
+}
+
+export interface Document {
+  id: string;
+  title: string;
+  description: string | null;
+  fileUrl: string;
+  category: string;
+  uploadedById: string;
+  createdAt?: string;
+  uploadedBy?: { id: string; name: string };
+}
+
+export interface SafetyBulletin {
+  id: string;
+  title: string;
+  message: string;
+  fileUrl: string | null;
+  audience: string;
+  jobSiteId: string | null;
+  sentAt: string | null;
+  createdById: string;
+  createdAt?: string;
+  jobSite?: { id: string; name: string };
+}
+
+export interface Notification {
+  id: string;
+  userId: string | null;
+  employeeId: string | null;
+  title: string;
+  message: string;
+  type: string;
+  readAt: string | null;
+  createdAt?: string;
 }
 
 export interface CustomerDashboard {

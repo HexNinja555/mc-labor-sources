@@ -9,4 +9,7 @@ export {
   IconClock,
   IconClipboard,
   IconBriefcase,
+  IconDocument,
+  IconBell,
+  IconShield,
 } from './DashboardIcons';

@@ -1,10 +1,12 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PageTitle } from '@/components/layout/PageTitle';
-import { Card } from '@/components/ui/Card';
+import { BRAND_HERO_IMAGES } from '@/lib/navigation';
+import { portalFormFieldClassName } from '@/components/portal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { FormField } from '@/components/ui/FormField';
@@ -27,49 +29,62 @@ export default function SettingsPage() {
     },
   });
 
+  const { reset } = form;
+
   const saveMutation = useMutation({
     mutationFn: (values: { companyName: string; officeEmail: string; dashboardSubdomain: string }) =>
       api.updateSettings(values),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings'] }),
   });
 
-  if (data && !form.formState.isDirty) {
-    form.reset({
+  useEffect(() => {
+    if (!data) return;
+    reset({
       companyName: data.companyName,
       officeEmail: data.officeEmail || '',
       dashboardSubdomain: data.dashboardSubdomain || '',
     });
-  }
+  }, [data, reset]);
 
   return (
-    <DashboardLayout>
-      <PageTitle title="Settings" description="Company configuration" />
+    <DashboardLayout heroTitle="Settings" heroImage={BRAND_HERO_IMAGES.inner}>
+      <PageTitle title="Settings" description="Company configuration and portal preferences" />
 
       {isLoading && <LoadingState />}
 
       {data && (
-        <Card className="max-w-lg">
+        <article className="max-w-xl overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm ring-1 ring-gray-100/80">
+          <header className="border-b border-gray-100 bg-gradient-to-r from-white to-slate-50/80 px-6 py-4">
+            <h2 className="brand-section-title text-lg">Company profile</h2>
+            <p className="mt-1 text-sm text-gray-500">Basic information shown across the admin portal.</p>
+          </header>
           <form
             onSubmit={form.handleSubmit((v) => saveMutation.mutate(v))}
-            className="space-y-4"
+            className="space-y-4 px-6 py-5"
           >
             <FormField label="Company Name">
-              <Input {...form.register('companyName')} />
+              <Input {...form.register('companyName')} className={portalFormFieldClassName} />
             </FormField>
             <FormField label="Office Email">
-              <Input type="email" {...form.register('officeEmail')} />
+              <Input type="email" {...form.register('officeEmail')} className={portalFormFieldClassName} />
             </FormField>
-            <FormField label="Dashboard Subdomain (placeholder)">
-              <Input {...form.register('dashboardSubdomain')} placeholder="portal" />
+            <FormField label="Dashboard Subdomain">
+              <Input
+                {...form.register('dashboardSubdomain')}
+                placeholder="portal"
+                className={portalFormFieldClassName}
+              />
             </FormField>
-            <p className="text-xs text-gray-500">
+            <p className="rounded-xl bg-slate-50 px-4 py-3 text-xs leading-relaxed text-gray-500">
               Notification and email provider settings will be configured in Milestone 4.
             </p>
-            <Button type="submit" loading={saveMutation.isPending}>
-              Save Settings
-            </Button>
+            <div className="border-t border-gray-100 pt-4">
+              <Button type="submit" loading={saveMutation.isPending}>
+                Save Settings
+              </Button>
+            </div>
           </form>
-        </Card>
+        </article>
       )}
     </DashboardLayout>
   );

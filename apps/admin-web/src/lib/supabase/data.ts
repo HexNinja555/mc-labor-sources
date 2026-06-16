@@ -8,12 +8,18 @@ import type {
   Assignment,
   AttendanceLog,
   Timesheet,
+  TimesheetEntry,
+  JobOrder,
+  Document,
+  SafetyBulletin,
+  Notification,
   DashboardStats,
   CustomerDashboard,
   CustomerJobSite,
   CompanySettings,
   CreateCustomerUserInput,
 } from '../domain-types';
+import { uploadDataUrl, uploadFile } from './storage';
 
 export class DataError extends Error {
   constructor(message: string) {
@@ -147,15 +153,23 @@ function mapAttendance(row: Record<string, unknown>): AttendanceLog {
 
 function mapTimesheet(row: Record<string, unknown>): Timesheet {
   const employee = row.employee as Record<string, unknown> | null;
+  const customer = row.customer as Record<string, unknown> | null;
   const jobSite = row.job_site as Record<string, unknown> | null;
   const sig = row.signature as Record<string, unknown> | null;
+  const entries = row.entries as Record<string, unknown>[] | undefined;
   return {
     id: row.id as string,
     employeeId: row.employee_id as string,
     customerId: row.customer_id as string,
     jobSiteId: row.job_site_id as string,
+    assignmentId: (row.assignment_id as string) ?? null,
+    workDate: (row.work_date as string) ?? null,
+    weekStartDate: (row.week_start_date as string) ?? null,
+    weekEndDate: (row.week_end_date as string) ?? null,
     totalHours: row.total_hours as string | number,
+    notes: (row.notes as string) ?? null,
     status: row.status as string,
+    createdAt: (row.created_at as string) ?? undefined,
     employee: employee
       ? {
           id: employee.id as string,
@@ -163,18 +177,139 @@ function mapTimesheet(row: Record<string, unknown>): Timesheet {
           lastName: employee.last_name as string,
         }
       : undefined,
+    customer: customer
+      ? { id: customer.id as string, companyName: customer.company_name as string }
+      : undefined,
     jobSite: jobSite
       ? { id: jobSite.id as string, name: jobSite.name as string }
       : undefined,
+    entries: entries?.map((e) => mapTimesheetEntry(e)),
     signature: sig
       ? {
+          id: sig.id as string | undefined,
           foremanName: sig.foreman_name as string,
+          foremanEmail: (sig.foreman_email as string) ?? null,
           signatureImageUrl: sig.signature_image_url as string,
+          signedAt: (sig.signed_at as string) ?? undefined,
           sentToCustomerOffice: sig.sent_to_customer_office as boolean,
           sentToMcLaborOffice: sig.sent_to_mc_labor_office as boolean,
         }
       : undefined,
   };
+}
+
+function mapTimesheetEntry(row: Record<string, unknown>): TimesheetEntry {
+  return {
+    id: row.id as string,
+    timesheetId: row.timesheet_id as string,
+    workDate: row.work_date as string,
+    startTime: row.start_time as string,
+    endTime: row.end_time as string,
+    breakMinutes: row.break_minutes as number,
+    hours: row.hours as string | number,
+    notes: (row.notes as string) ?? null,
+  };
+}
+
+function mapJobOrder(row: Record<string, unknown>): JobOrder {
+  const employee = row.employee as Record<string, unknown> | null;
+  const customer = row.customer as Record<string, unknown> | null;
+  const jobSite = row.job_site as Record<string, unknown> | null;
+  return {
+    id: row.id as string,
+    orderNumber: row.order_number as string,
+    customerId: row.customer_id as string,
+    jobSiteId: row.job_site_id as string,
+    employeeId: (row.employee_id as string) ?? null,
+    title: row.title as string,
+    description: (row.description as string) ?? null,
+    startDate: row.start_date as string,
+    startTime: (row.start_time as string) ?? null,
+    requiredPosition: (row.required_position as string) ?? null,
+    instructions: (row.instructions as string) ?? null,
+    safetyNotes: (row.safety_notes as string) ?? null,
+    status: row.status as string,
+    sentAt: (row.sent_at as string) ?? null,
+    acknowledgedAt: (row.acknowledged_at as string) ?? null,
+    createdById: row.created_by_id as string,
+    createdAt: (row.created_at as string) ?? undefined,
+    employee: employee
+      ? {
+          id: employee.id as string,
+          firstName: employee.first_name as string,
+          lastName: employee.last_name as string,
+        }
+      : undefined,
+    customer: customer
+      ? { id: customer.id as string, companyName: customer.company_name as string }
+      : undefined,
+    jobSite: jobSite ? { id: jobSite.id as string, name: jobSite.name as string } : undefined,
+  };
+}
+
+function mapDocument(row: Record<string, unknown>): Document {
+  const uploadedBy = row.uploaded_by as Record<string, unknown> | null;
+  return {
+    id: row.id as string,
+    title: row.title as string,
+    description: (row.description as string) ?? null,
+    fileUrl: row.file_url as string,
+    category: row.category as string,
+    uploadedById: row.uploaded_by_id as string,
+    createdAt: (row.created_at as string) ?? undefined,
+    uploadedBy: uploadedBy
+      ? { id: uploadedBy.id as string, name: uploadedBy.name as string }
+      : undefined,
+  };
+}
+
+function mapSafetyBulletin(row: Record<string, unknown>): SafetyBulletin {
+  const jobSite = row.job_site as Record<string, unknown> | null;
+  return {
+    id: row.id as string,
+    title: row.title as string,
+    message: row.message as string,
+    fileUrl: (row.file_url as string) ?? null,
+    audience: row.audience as string,
+    jobSiteId: (row.job_site_id as string) ?? null,
+    sentAt: (row.sent_at as string) ?? null,
+    createdById: row.created_by_id as string,
+    createdAt: (row.created_at as string) ?? undefined,
+    jobSite: jobSite ? { id: jobSite.id as string, name: jobSite.name as string } : undefined,
+  };
+}
+
+function mapNotification(row: Record<string, unknown>): Notification {
+  return {
+    id: row.id as string,
+    userId: (row.user_id as string) ?? null,
+    employeeId: (row.employee_id as string) ?? null,
+    title: row.title as string,
+    message: row.message as string,
+    type: row.type as string,
+    readAt: (row.read_at as string) ?? null,
+    createdAt: (row.created_at as string) ?? undefined,
+  };
+}
+
+async function createNotificationForEmployee(
+  employeeId: string,
+  title: string,
+  message: string,
+  type: string,
+) {
+  const { data: userRow } = await sb()
+    .from('users')
+    .select('id')
+    .eq('employee_id', employeeId)
+    .maybeSingle();
+  await sb().from('notifications').insert({
+    user_id: userRow?.id ?? null,
+    employee_id: employeeId,
+    title,
+    message,
+    type,
+  });
 }
 
 function mapUser(row: Record<string, unknown>): AuthUser {
@@ -697,6 +832,446 @@ export const data = {
       .single();
     throwIf(error);
     return mapSettings(row as Record<string, unknown>);
+  },
+
+  // --- Milestone 2: Job Orders ---
+
+  async getJobOrders(params?: Record<string, string>): Promise<JobOrder[]> {
+    let q = sb()
+      .from('job_orders')
+      .select(
+        '*, employee:employees(id, first_name, last_name), customer:customers(id, company_name), job_site:job_sites(id, name)',
+      )
+      .order('created_at', { ascending: false });
+    if (params?.customerId) q = q.eq('customer_id', params.customerId);
+    if (params?.jobSiteId) q = q.eq('job_site_id', params.jobSiteId);
+    if (params?.status) q = q.eq('status', params.status);
+    if (params?.search) {
+      q = q.or(
+        `title.ilike.%${params.search}%,order_number.ilike.%${params.search}%,description.ilike.%${params.search}%`,
+      );
+    }
+    const { data: rows, error } = await q;
+    throwIf(error);
+    return (rows ?? []).map((r) => mapJobOrder(r as Record<string, unknown>));
+  },
+
+  async getJobOrder(id: string): Promise<JobOrder> {
+    const { data: row, error } = await sb()
+      .from('job_orders')
+      .select(
+        '*, employee:employees(id, first_name, last_name), customer:customers(id, company_name), job_site:job_sites(id, name)',
+      )
+      .eq('id', id)
+      .single();
+    throwIf(error);
+    return mapJobOrder(row as Record<string, unknown>);
+  },
+
+  async createJobOrder(payload: Partial<JobOrder>): Promise<JobOrder> {
+    const me = await data.getMe();
+    const { data: row, error } = await sb()
+      .from('job_orders')
+      .insert({
+        order_number: payload.orderNumber,
+        customer_id: payload.customerId,
+        job_site_id: payload.jobSiteId,
+        employee_id: payload.employeeId ?? null,
+        title: payload.title,
+        description: payload.description,
+        start_date: payload.startDate,
+        start_time: payload.startTime,
+        required_position: payload.requiredPosition,
+        instructions: payload.instructions,
+        safety_notes: payload.safetyNotes,
+        status: payload.status ?? 'DRAFT',
+        created_by_id: me.id,
+      })
+      .select(
+        '*, employee:employees(id, first_name, last_name), customer:customers(id, company_name), job_site:job_sites(id, name)',
+      )
+      .single();
+    throwIf(error);
+    return mapJobOrder(row as Record<string, unknown>);
+  },
+
+  async updateJobOrder(id: string, payload: Partial<JobOrder>): Promise<JobOrder> {
+    const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (payload.orderNumber !== undefined) update.order_number = payload.orderNumber;
+    if (payload.customerId !== undefined) update.customer_id = payload.customerId;
+    if (payload.jobSiteId !== undefined) update.job_site_id = payload.jobSiteId;
+    if (payload.employeeId !== undefined) update.employee_id = payload.employeeId;
+    if (payload.title !== undefined) update.title = payload.title;
+    if (payload.description !== undefined) update.description = payload.description;
+    if (payload.startDate !== undefined) update.start_date = payload.startDate;
+    if (payload.startTime !== undefined) update.start_time = payload.startTime;
+    if (payload.requiredPosition !== undefined) update.required_position = payload.requiredPosition;
+    if (payload.instructions !== undefined) update.instructions = payload.instructions;
+    if (payload.safetyNotes !== undefined) update.safety_notes = payload.safetyNotes;
+    if (payload.status !== undefined) update.status = payload.status;
+    const { data: row, error } = await sb()
+      .from('job_orders')
+      .update(update)
+      .eq('id', id)
+      .select(
+        '*, employee:employees(id, first_name, last_name), customer:customers(id, company_name), job_site:job_sites(id, name)',
+      )
+      .single();
+    throwIf(error);
+    return mapJobOrder(row as Record<string, unknown>);
+  },
+
+  async sendJobOrder(id: string): Promise<JobOrder> {
+    const order = await data.getJobOrder(id);
+    const now = new Date().toISOString();
+    const { data: row, error } = await sb()
+      .from('job_orders')
+      .update({ status: 'SENT', sent_at: now, updated_at: now })
+      .eq('id', id)
+      .select(
+        '*, employee:employees(id, first_name, last_name), customer:customers(id, company_name), job_site:job_sites(id, name)',
+      )
+      .single();
+    throwIf(error);
+    if (order.employeeId) {
+      await createNotificationForEmployee(
+        order.employeeId,
+        `Job Order: ${order.title}`,
+        `You have a new job order (${order.orderNumber}) starting ${order.startDate}.`,
+        'JOB_ORDER',
+      );
+    }
+    console.log('[EMAIL PLACEHOLDER] Job order sent:', order.orderNumber);
+    return mapJobOrder(row as Record<string, unknown>);
+  },
+
+  // --- Milestone 2: Timesheets ---
+
+  async getTimesheets(params?: Record<string, string>): Promise<Timesheet[]> {
+    let q = sb()
+      .from('timesheets')
+      .select(
+        '*, employee:employees(id, first_name, last_name), customer:customers(id, company_name), job_site:job_sites(id, name), signature:timesheet_signatures(*)',
+      )
+      .order('created_at', { ascending: false });
+    if (params?.employeeId) q = q.eq('employee_id', params.employeeId);
+    if (params?.customerId) q = q.eq('customer_id', params.customerId);
+    if (params?.jobSiteId) q = q.eq('job_site_id', params.jobSiteId);
+    if (params?.status) q = q.eq('status', params.status);
+    const { data: rows, error } = await q;
+    throwIf(error);
+    return (rows ?? []).map((r) => mapTimesheet(r as Record<string, unknown>));
+  },
+
+  async getTimesheet(id: string): Promise<Timesheet> {
+    const { data: row, error } = await sb()
+      .from('timesheets')
+      .select(
+        '*, employee:employees(id, first_name, last_name), customer:customers(id, company_name), job_site:job_sites(id, name), signature:timesheet_signatures(*), entries:timesheet_entries(*)',
+      )
+      .eq('id', id)
+      .single();
+    throwIf(error);
+    return mapTimesheet(row as Record<string, unknown>);
+  },
+
+  async createTimesheet(payload: {
+    employeeId: string;
+    customerId: string;
+    jobSiteId: string;
+    assignmentId?: string;
+    workDate?: string;
+    weekStartDate?: string;
+    weekEndDate?: string;
+    totalHours: number;
+    notes?: string;
+    status?: string;
+  }): Promise<Timesheet> {
+    const { data: row, error } = await sb()
+      .from('timesheets')
+      .insert({
+        employee_id: payload.employeeId,
+        customer_id: payload.customerId,
+        job_site_id: payload.jobSiteId,
+        assignment_id: payload.assignmentId ?? null,
+        work_date: payload.workDate ?? null,
+        week_start_date: payload.weekStartDate ?? null,
+        week_end_date: payload.weekEndDate ?? null,
+        total_hours: payload.totalHours,
+        notes: payload.notes ?? null,
+        status: payload.status ?? 'DRAFT',
+      })
+      .select(
+        '*, employee:employees(id, first_name, last_name), customer:customers(id, company_name), job_site:job_sites(id, name), signature:timesheet_signatures(*)',
+      )
+      .single();
+    throwIf(error);
+    return mapTimesheet(row as Record<string, unknown>);
+  },
+
+  async updateTimesheet(
+    id: string,
+    payload: Partial<{
+      totalHours: number;
+      notes: string;
+      status: string;
+      workDate: string;
+      weekStartDate: string;
+      weekEndDate: string;
+    }>,
+  ): Promise<Timesheet> {
+    const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (payload.totalHours !== undefined) update.total_hours = payload.totalHours;
+    if (payload.notes !== undefined) update.notes = payload.notes;
+    if (payload.status !== undefined) update.status = payload.status;
+    if (payload.workDate !== undefined) update.work_date = payload.workDate;
+    if (payload.weekStartDate !== undefined) update.week_start_date = payload.weekStartDate;
+    if (payload.weekEndDate !== undefined) update.week_end_date = payload.weekEndDate;
+    const { data: row, error } = await sb()
+      .from('timesheets')
+      .update(update)
+      .eq('id', id)
+      .select(
+        '*, employee:employees(id, first_name, last_name), customer:customers(id, company_name), job_site:job_sites(id, name), signature:timesheet_signatures(*)',
+      )
+      .single();
+    throwIf(error);
+    return mapTimesheet(row as Record<string, unknown>);
+  },
+
+  async signTimesheet(
+    id: string,
+    payload: { foremanName: string; foremanEmail?: string; signatureDataUrl: string },
+  ): Promise<Timesheet> {
+    const imageUrl = await uploadDataUrl(
+      'signatures',
+      payload.signatureDataUrl,
+      `timesheet-${id}.png`,
+      'timesheets',
+    );
+    const { error: sigError } = await sb().from('timesheet_signatures').upsert(
+      {
+        timesheet_id: id,
+        foreman_name: payload.foremanName,
+        foreman_email: payload.foremanEmail || null,
+        signature_image_url: imageUrl,
+        signed_at: new Date().toISOString(),
+      },
+      { onConflict: 'timesheet_id' },
+    );
+    throwIf(sigError);
+    const { data: row, error } = await sb()
+      .from('timesheets')
+      .update({ status: 'SIGNED', updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select(
+        '*, employee:employees(id, first_name, last_name), customer:customers(id, company_name), job_site:job_sites(id, name), signature:timesheet_signatures(*)',
+      )
+      .single();
+    throwIf(error);
+    console.log('[EMAIL PLACEHOLDER] Timesheet signed:', id);
+    return mapTimesheet(row as Record<string, unknown>);
+  },
+
+  async markTimesheetSent(
+    id: string,
+    flags: { sentToCustomerOffice?: boolean; sentToMcLaborOffice?: boolean },
+  ): Promise<Timesheet> {
+    const update: Record<string, unknown> = {};
+    if (flags.sentToCustomerOffice !== undefined) {
+      update.sent_to_customer_office = flags.sentToCustomerOffice;
+    }
+    if (flags.sentToMcLaborOffice !== undefined) {
+      update.sent_to_mc_labor_office = flags.sentToMcLaborOffice;
+    }
+    const { error: sigError } = await sb()
+      .from('timesheet_signatures')
+      .update(update)
+      .eq('timesheet_id', id);
+    throwIf(sigError);
+    const tsUpdate: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (flags.sentToCustomerOffice || flags.sentToMcLaborOffice) {
+      tsUpdate.status = 'SENT';
+    }
+    const { data: row, error } = await sb()
+      .from('timesheets')
+      .update(tsUpdate)
+      .eq('id', id)
+      .select(
+        '*, employee:employees(id, first_name, last_name), customer:customers(id, company_name), job_site:job_sites(id, name), signature:timesheet_signatures(*)',
+      )
+      .single();
+    throwIf(error);
+    return mapTimesheet(row as Record<string, unknown>);
+  },
+
+  // --- Milestone 2: Documents ---
+
+  async getDocuments(): Promise<Document[]> {
+    const { data: rows, error } = await sb()
+      .from('documents')
+      .select('*, uploaded_by:users(id, name)')
+      .order('created_at', { ascending: false });
+    throwIf(error);
+    return (rows ?? []).map((r) => mapDocument(r as Record<string, unknown>));
+  },
+
+  async uploadDocument(payload: {
+    title: string;
+    description?: string;
+    category: string;
+    file: File;
+  }): Promise<Document> {
+    const me = await data.getMe();
+    const fileUrl = await uploadFile('documents', payload.file, 'docs');
+    const { data: row, error } = await sb()
+      .from('documents')
+      .insert({
+        title: payload.title,
+        description: payload.description ?? null,
+        file_url: fileUrl,
+        category: payload.category,
+        uploaded_by_id: me.id,
+      })
+      .select('*, uploaded_by:users(id, name)')
+      .single();
+    throwIf(error);
+    return mapDocument(row as Record<string, unknown>);
+  },
+
+  async deleteDocument(id: string): Promise<{ deleted: boolean }> {
+    const doc = await sb().from('documents').select('file_url').eq('id', id).single();
+    const { error } = await sb().from('documents').delete().eq('id', id);
+    throwIf(error);
+    if (doc.data?.file_url) {
+      try {
+        const { deleteStorageFile } = await import('./storage');
+        await deleteStorageFile('documents', doc.data.file_url as string);
+      } catch {
+        // ignore storage cleanup errors
+      }
+    }
+    return { deleted: true };
+  },
+
+  // --- Milestone 2: Safety Bulletins ---
+
+  async getSafetyBulletins(): Promise<SafetyBulletin[]> {
+    const { data: rows, error } = await sb()
+      .from('safety_bulletins')
+      .select('*, job_site:job_sites(id, name)')
+      .order('created_at', { ascending: false });
+    throwIf(error);
+    return (rows ?? []).map((r) => mapSafetyBulletin(r as Record<string, unknown>));
+  },
+
+  async createSafetyBulletin(payload: {
+    title: string;
+    message: string;
+    audience: string;
+    jobSiteId?: string;
+    fileUrl?: string;
+  }): Promise<SafetyBulletin> {
+    const me = await data.getMe();
+    const { data: row, error } = await sb()
+      .from('safety_bulletins')
+      .insert({
+        title: payload.title,
+        message: payload.message,
+        audience: payload.audience,
+        job_site_id: payload.jobSiteId ?? null,
+        file_url: payload.fileUrl ?? null,
+        created_by_id: me.id,
+      })
+      .select('*, job_site:job_sites(id, name)')
+      .single();
+    throwIf(error);
+    return mapSafetyBulletin(row as Record<string, unknown>);
+  },
+
+  async uploadSafetyBulletinFile(file: File): Promise<string> {
+    return uploadFile('safety-bulletins', file, 'bulletins');
+  },
+
+  async sendSafetyBulletin(id: string): Promise<SafetyBulletin> {
+    const bulletin = await data.getSafetyBulletins().then((list) => list.find((b) => b.id === id));
+    if (!bulletin) throw new DataError('Bulletin not found');
+    const now = new Date().toISOString();
+    const { data: row, error } = await sb()
+      .from('safety_bulletins')
+      .update({ sent_at: now, updated_at: now })
+      .eq('id', id)
+      .select('*, job_site:job_sites(id, name)')
+      .single();
+    throwIf(error);
+
+    let employeeIds: string[] = [];
+    if (bulletin.audience === 'ALL_EMPLOYEES') {
+      const { data: employees } = await sb().from('employees').select('id').eq('status', 'ACTIVE');
+      employeeIds = (employees ?? []).map((e) => e.id as string);
+    } else if (bulletin.audience === 'SPECIFIC_JOB_SITE' && bulletin.jobSiteId) {
+      const { data: assignments } = await sb()
+        .from('job_assignments')
+        .select('employee_id')
+        .eq('job_site_id', bulletin.jobSiteId)
+        .in('status', ['ACTIVE', 'ACCEPTED']);
+      employeeIds = [...new Set((assignments ?? []).map((a) => a.employee_id as string))];
+    }
+
+    for (const employeeId of employeeIds) {
+      await createNotificationForEmployee(
+        employeeId,
+        `Safety: ${bulletin.title}`,
+        bulletin.message,
+        'SAFETY',
+      );
+    }
+    console.log('[EMAIL PLACEHOLDER] Safety bulletin sent:', bulletin.title);
+    return mapSafetyBulletin(row as Record<string, unknown>);
+  },
+
+  // --- Milestone 2: Notifications ---
+
+  async getNotifications(): Promise<Notification[]> {
+    const { data: rows, error } = await sb()
+      .from('notifications')
+      .select('*')
+      .order('created_at', { ascending: false });
+    throwIf(error);
+    return (rows ?? []).map((r) => mapNotification(r as Record<string, unknown>));
+  },
+
+  async createNotification(payload: {
+    title: string;
+    message: string;
+    type: string;
+    userId?: string;
+    employeeId?: string;
+  }): Promise<Notification> {
+    const { data: row, error } = await sb()
+      .from('notifications')
+      .insert({
+        title: payload.title,
+        message: payload.message,
+        type: payload.type,
+        user_id: payload.userId ?? null,
+        employee_id: payload.employeeId ?? null,
+      })
+      .select('*')
+      .single();
+    throwIf(error);
+    return mapNotification(row as Record<string, unknown>);
+  },
+
+  async markNotificationRead(id: string): Promise<Notification> {
+    const { data: row, error } = await sb()
+      .from('notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('id', id)
+      .select('*')
+      .single();
+    throwIf(error);
+    return mapNotification(row as Record<string, unknown>);
   },
 };
 

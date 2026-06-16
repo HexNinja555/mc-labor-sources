@@ -177,3 +177,5 @@ export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>;
 export type CreateCustomerInput = z.infer<typeof createCustomerSchema>;
 export type CreateJobSiteInput = z.infer<typeof createJobSiteSchema>;
 export type CreateAssignmentInput = z.infer<typeof createAssignmentSchema>;
+export type CreateJobOrderInput = z.infer<typeof createJobOrderSchema>;
+export type CreateTimesheetInput = z.infer<typeof createTimesheetSchema>;

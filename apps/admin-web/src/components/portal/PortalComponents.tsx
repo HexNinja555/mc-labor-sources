@@ -3,6 +3,9 @@ import type { ReactNode } from 'react';
 export const portalFieldClassName =
   'rounded-xl border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20';
 
+/** Use on inputs inside modals and forms for consistent portal styling */
+export const portalFormFieldClassName = portalFieldClassName;
+
 interface PortalFilterPanelProps {
   children: ReactNode;
   title?: string;
@@ -10,8 +13,15 @@ interface PortalFilterPanelProps {
 
 export function PortalFilterPanel({ children, title = 'Filters' }: PortalFilterPanelProps) {
   return (
-    <div className="mb-6 overflow-hidden rounded-2xl border border-gray-100 bg-gradient-to-br from-slate-50 to-white p-5 shadow-sm sm:p-6">
-      <p className="mb-4 text-xs font-medium uppercase tracking-widest text-primary">{title}</p>
+    <div className="mb-6 overflow-hidden rounded-2xl border border-gray-100 bg-gradient-to-br from-slate-50 via-white to-blue-50/30 p-5 shadow-sm ring-1 ring-gray-100/80 sm:p-6">
+      <div className="mb-4 flex items-center gap-2">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M4 6h16M7 12h10M10 18h4" strokeLinecap="round" />
+          </svg>
+        </span>
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">{title}</p>
+      </div>
       {children}
     </div>
   );
@@ -70,8 +80,8 @@ export function PortalRecordsPanel({
   children,
 }: PortalRecordsPanelProps) {
   return (
-    <article className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-      <header className="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+    <article className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm ring-1 ring-gray-100/80">
+      <header className="flex flex-col gap-3 border-b border-gray-100 bg-gradient-to-r from-white to-slate-50/80 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div>
           <h2 className="brand-section-title text-lg">{title}</h2>
           {description && <p className="mt-1 text-sm leading-relaxed text-gray-500">{description}</p>}

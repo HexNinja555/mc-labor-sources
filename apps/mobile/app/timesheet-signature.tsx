@@ -1,17 +1,18 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 import { brandStyles } from '@/theme/brand';
 
 export default function TimesheetSignatureScreen() {
   return (
-    <View style={styles.container}>
+    <View style={brandStyles.screen}>
       <Text style={styles.title}>Foreman Signature</Text>
-      <Text style={styles.note}>Placeholder — signature capture in Milestone 2</Text>
+      <Text style={styles.note}>
+        Signature capture on mobile is planned for Milestone 3. Admins can sign timesheets from the web portal.
+      </Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: brandStyles.screen,
+const styles = {
   title: brandStyles.title,
   note: brandStyles.note,
-});
+};

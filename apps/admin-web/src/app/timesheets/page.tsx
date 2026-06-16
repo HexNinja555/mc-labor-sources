@@ -1,12 +1,373 @@
-import ShellPage from '@/components/ShellPage';
+'use client';
+
+import { useMemo, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { createTimesheetSchema, type CreateTimesheetInput } from '@mc-labor/shared';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { PageTitle } from '@/components/layout/PageTitle';
 import { BRAND_HERO_IMAGES } from '@/lib/navigation';
+import {
+  PortalFilterPanel,
+  PortalRecordsPanel,
+  PortalSummaryStat,
+  portalFieldClassName,
+  portalFormFieldClassName,
+  PersonCell,
+  HoursCell,
+  YesNoCell,
+  ActionCell,
+} from '@/components/portal';
+import { IconClipboard, IconClock, IconUsers } from '@/components/dashboard';
+import { SignaturePad } from '@/components/ui/SignaturePad';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { FormField } from '@/components/ui/FormField';
+import { Modal } from '@/components/ui/Modal';
+import { Table, Th, Td } from '@/components/ui/Table';
+import { Badge } from '@/components/ui/Badge';
+import { LoadingState } from '@/components/ui/LoadingState';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { api, type Timesheet } from '@/lib/api-client';
+import { formatEmployeeName } from '@/lib/portal-stats';
 
 export default function TimesheetsPage() {
+  const [customerId, setCustomerId] = useState('');
+  const [status, setStatus] = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [signOpen, setSignOpen] = useState(false);
+  const [selected, setSelected] = useState<Timesheet | null>(null);
+  const [foremanName, setForemanName] = useState('');
+  const [foremanEmail, setForemanEmail] = useState('');
+  const [signatureDataUrl, setSignatureDataUrl] = useState('');
+  const queryClient = useQueryClient();
+
+  const filters = useMemo(
+    () => ({
+      ...(customerId && { customerId }),
+      ...(status && { status }),
+    }),
+    [customerId, status],
+  );
+
+  const { data: customers } = useQuery({
+    queryKey: ['customers'],
+    queryFn: () => api.getCustomers(),
+  });
+
+  const { data: employees } = useQuery({
+    queryKey: ['employees'],
+    queryFn: () => api.getEmployees({ status: 'ACTIVE' }),
+  });
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['timesheets', filters],
+    queryFn: () => api.getTimesheets(filters),
+  });
+
+  const stats = useMemo(() => {
+    const sheets = data ?? [];
+    return {
+      total: sheets.length,
+      signed: sheets.filter((t) => t.status === 'SIGNED' || t.status === 'SENT').length,
+      draft: sheets.filter((t) => t.status === 'DRAFT').length,
+      totalHours: sheets.reduce((sum, t) => sum + Number(t.totalHours || 0), 0).toFixed(1),
+    };
+  }, [data]);
+
+  const form = useForm<CreateTimesheetInput>({
+    resolver: zodResolver(createTimesheetSchema),
+    defaultValues: {
+      employeeId: '',
+      customerId: '',
+      jobSiteId: '',
+      totalHours: 40,
+    },
+  });
+
+  const watchCustomerId = form.watch('customerId');
+
+  const { data: jobSites } = useQuery({
+    queryKey: ['job-sites', watchCustomerId],
+    queryFn: () => api.getJobSites({ customerId: watchCustomerId }),
+    enabled: !!watchCustomerId,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (values: CreateTimesheetInput) => api.createTimesheet(values),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['timesheets'] });
+      setModalOpen(false);
+    },
+  });
+
+  const signMutation = useMutation({
+    mutationFn: () =>
+      api.signTimesheet(selected!.id, {
+        foremanName,
+        foremanEmail: foremanEmail || undefined,
+        signatureDataUrl,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['timesheets'] });
+      setSignOpen(false);
+      setDetailOpen(false);
+    },
+  });
+
+  const markSentMutation = useMutation({
+    mutationFn: (flags: { sentToCustomerOffice?: boolean; sentToMcLaborOffice?: boolean }) =>
+      api.markTimesheetSent(selected!.id, flags),
+    onSuccess: async () => {
+      queryClient.invalidateQueries({ queryKey: ['timesheets'] });
+      if (selected) {
+        const updated = await api.getTimesheet(selected.id);
+        setSelected(updated);
+      }
+    },
+  });
+
   return (
-    <ShellPage
-      title="Timesheets"
-      description="View and manage employee timesheets"
-      heroImage={BRAND_HERO_IMAGES.timesheets}
-    />
+    <DashboardLayout heroTitle="Timesheets" heroImage={BRAND_HERO_IMAGES.timesheets}>
+      <PageTitle
+        title="Timesheets"
+        description="View and manage employee timesheets"
+        action={<Button onClick={() => setModalOpen(true)}>Add Timesheet</Button>}
+      />
+
+      {data && data.length > 0 && (
+        <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <PortalSummaryStat label="Total timesheets" value={stats.total} icon={<IconClipboard className="h-5 w-5" />} />
+          <PortalSummaryStat
+            label="Signed / sent"
+            value={stats.signed}
+            icon={<IconUsers className="h-5 w-5" />}
+            accent="green"
+          />
+          <PortalSummaryStat
+            label="Draft"
+            value={stats.draft}
+            icon={<IconClock className="h-5 w-5" />}
+            accent="slate"
+          />
+          <PortalSummaryStat
+            label="Total hours"
+            value={stats.totalHours}
+            icon={<IconClock className="h-5 w-5" />}
+            accent="amber"
+          />
+        </div>
+      )}
+
+      <PortalFilterPanel>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormField label="Customer">
+            <Select
+              value={customerId}
+              onChange={(e) => setCustomerId(e.target.value)}
+              className={portalFieldClassName}
+            >
+              <option value="">All customers</option>
+              {customers?.map((c) => (
+                <option key={c.id} value={c.id}>{c.companyName}</option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField label="Status">
+            <Select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className={portalFieldClassName}
+            >
+              <option value="">All statuses</option>
+              <option value="DRAFT">Draft</option>
+              <option value="SUBMITTED">Submitted</option>
+              <option value="SIGNED">Signed</option>
+              <option value="SENT">Sent</option>
+            </Select>
+          </FormField>
+        </div>
+      </PortalFilterPanel>
+
+      {isLoading && <LoadingState />}
+      {!isLoading && data?.length === 0 && (
+        <EmptyState title="No timesheets found" description="Create a timesheet for an employee and job site." />
+      )}
+      {data && data.length > 0 && (
+        <PortalRecordsPanel title="Timesheet records" count={data.length} countLabel="timesheets">
+          <Table>
+            <thead>
+              <tr>
+                <Th>Employee</Th>
+                <Th>Job Site</Th>
+                <Th>Hours</Th>
+                <Th>Foreman</Th>
+                <Th>Status</Th>
+                <Th>Sent to Office</Th>
+                <Th>Actions</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((ts) => (
+                <tr key={ts.id}>
+                  <Td>
+                    <PersonCell
+                      name={formatEmployeeName(ts.employee)}
+                    />
+                  </Td>
+                  <Td>{ts.jobSite?.name}</Td>
+                  <Td>
+                    <HoursCell value={ts.totalHours} />
+                  </Td>
+                  <Td>{ts.signature?.foremanName ?? '—'}</Td>
+                  <Td>
+                    <Badge status={ts.status} className="rounded-full normal-case" />
+                  </Td>
+                  <Td>
+                    <YesNoCell value={!!ts.signature?.sentToCustomerOffice} />
+                  </Td>
+                  <Td>
+                    <ActionCell>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          setSelected(ts);
+                          setDetailOpen(true);
+                        }}
+                      >
+                        View
+                      </Button>
+                    </ActionCell>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </PortalRecordsPanel>
+      )}
+
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add Timesheet" size="lg">
+        <form onSubmit={form.handleSubmit((v) => createMutation.mutate(v))} className="space-y-4">
+          <FormField label="Employee" error={form.formState.errors.employeeId?.message}>
+            <Select {...form.register('employeeId')} className={portalFormFieldClassName}>
+              <option value="">Select employee</option>
+              {employees?.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.firstName} {e.lastName}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField label="Customer" error={form.formState.errors.customerId?.message}>
+            <Select {...form.register('customerId')} className={portalFormFieldClassName}>
+              <option value="">Select customer</option>
+              {customers?.map((c) => (
+                <option key={c.id} value={c.id}>{c.companyName}</option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField label="Job Site" error={form.formState.errors.jobSiteId?.message}>
+            <Select {...form.register('jobSiteId')} className={portalFormFieldClassName}>
+              <option value="">Select job site</option>
+              {jobSites?.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField label="Total Hours" error={form.formState.errors.totalHours?.message}>
+            <Input
+              type="number"
+              step="0.5"
+              {...form.register('totalHours', { valueAsNumber: true })}
+              className={portalFormFieldClassName}
+            />
+          </FormField>
+          <FormField label="Work Date">
+            <Input type="date" {...form.register('workDate')} className={portalFormFieldClassName} />
+          </FormField>
+          <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
+            <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={createMutation.isPending}>Create</Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal open={detailOpen} onClose={() => setDetailOpen(false)} title="Timesheet Detail" size="lg">
+        {selected && (
+          <div className="space-y-5">
+            <div className="rounded-xl border border-gray-100 bg-slate-50/80 px-4 py-3 text-sm text-slate-700">
+              <span className="font-semibold">{formatEmployeeName(selected.employee)}</span>
+              {' · '}
+              {selected.jobSite?.name}
+              {' · '}
+              <span className="font-semibold text-primary">{selected.totalHours}h</span>
+            </div>
+            {selected.signature?.signatureImageUrl && (
+              <div className="rounded-xl border border-gray-100 bg-white p-4">
+                <p className="mb-2 text-xs font-medium uppercase tracking-widest text-gray-500">Signature</p>
+                <img
+                  src={selected.signature.signatureImageUrl}
+                  alt="Signature"
+                  className="max-h-32 rounded-lg border border-gray-100"
+                />
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2 border-t border-gray-100 pt-4">
+              {selected.status !== 'SIGNED' && selected.status !== 'SENT' && (
+                <Button onClick={() => setSignOpen(true)}>Sign Timesheet</Button>
+              )}
+              {selected.signature && (
+                <>
+                  <Button
+                    variant="secondary"
+                    onClick={() => markSentMutation.mutate({ sentToCustomerOffice: true })}
+                  >
+                    Mark sent to customer
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => markSentMutation.mutate({ sentToMcLaborOffice: true })}
+                  >
+                    Mark sent to MC Labor
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal open={signOpen} onClose={() => setSignOpen(false)} title="Sign Timesheet">
+        <div className="space-y-4">
+          <FormField label="Foreman Name">
+            <Input value={foremanName} onChange={(e) => setForemanName(e.target.value)} className={portalFormFieldClassName} />
+          </FormField>
+          <FormField label="Foreman Email">
+            <Input
+              type="email"
+              value={foremanEmail}
+              onChange={(e) => setForemanEmail(e.target.value)}
+              className={portalFormFieldClassName}
+            />
+          </FormField>
+          <FormField label="Signature">
+            <SignaturePad onChange={setSignatureDataUrl} />
+          </FormField>
+          <Button
+            onClick={() => signMutation.mutate()}
+            loading={signMutation.isPending}
+            disabled={!foremanName || !signatureDataUrl}
+          >
+            Save Signature
+          </Button>
+        </div>
+      </Modal>
+    </DashboardLayout>
   );
 }

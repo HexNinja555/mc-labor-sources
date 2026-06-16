@@ -120,4 +120,12 @@
   .dashboard-table .table-container {
     @apply overflow-hidden rounded-xl border-0 bg-transparent;
   }
+
+  .portal-row-unread {
+    @apply bg-blue-50/60;
+  }
+
+  .portal-row-unread:hover {
+    @apply bg-blue-50;
+  }
 }
