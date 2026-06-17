@@ -20,6 +20,10 @@
       },
       "package": "com.mclabor.sources"
     },
-    "plugins": ["expo-router", "expo-location"]
+    "plugins": ["expo-router", "expo-location"],
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    }
   }
 }
