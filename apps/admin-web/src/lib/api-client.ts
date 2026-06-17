@@ -16,6 +16,7 @@ export type {
   CustomerJobSite,
   CompanySettings,
   CreateCustomerUserInput,
+  CreateWorkerUserInput,
   AuthUser,
 } from './domain-types';
 

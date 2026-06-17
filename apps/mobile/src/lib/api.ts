@@ -94,6 +94,17 @@ function mapTimesheet(row: Record<string, unknown>) {
   };
 }
 
+function mapNotification(row: Record<string, unknown>) {
+  return {
+    id: row.id as string,
+    title: row.title as string,
+    message: row.message as string,
+    type: row.type as string,
+    readAt: (row.read_at as string) ?? null,
+    createdAt: row.created_at as string,
+  };
+}
+
 export const mobileApi = {
   getMe,
   getAssignments: async () => {
@@ -259,6 +270,29 @@ export const mobileApi = {
       .order('created_at', { ascending: false });
     throwIf(error);
     return (data ?? []).map((row) => mapTimesheet(row as Record<string, unknown>));
+  },
+  getNotifications: async () => {
+    const me = await getMe();
+    let q = supabase.from('notifications').select('*').order('created_at', { ascending: false });
+    if (me.employeeId) {
+      q = q.or(`user_id.eq.${me.id},employee_id.eq.${me.employeeId}`);
+    } else {
+      q = q.eq('user_id', me.id);
+    }
+    const { data, error } = await q;
+    throwIf(error);
+    return (data ?? []).map((row) => mapNotification(row as Record<string, unknown>));
+  },
+  markNotificationRead: async (id: string) => {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from('notifications')
+      .update({ read_at: now })
+      .eq('id', id)
+      .select('*')
+      .single();
+    throwIf(error);
+    return mapNotification(data as Record<string, unknown>);
   },
 };
 

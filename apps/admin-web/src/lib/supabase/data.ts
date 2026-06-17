@@ -18,6 +18,7 @@ import type {
   CustomerJobSite,
   CompanySettings,
   CreateCustomerUserInput,
+  CreateWorkerUserInput,
 } from '../domain-types';
 import { uploadDataUrl, uploadFile } from './storage';
 
@@ -536,6 +537,34 @@ export const data = {
     );
     const json = await res.json();
     if (!res.ok) throw new DataError(json.error || 'Failed to create user');
+    return json;
+  },
+
+  async createWorkerUser(
+    employeeId: string,
+    input: CreateWorkerUserInput,
+  ): Promise<unknown> {
+    const { data: session } = await sb().auth.getSession();
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-app-user`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.session?.access_token}`,
+        },
+        body: JSON.stringify({
+          name: input.name,
+          email: input.email,
+          password: input.password,
+          phone: input.phone,
+          role: 'WORKER',
+          employeeId,
+        }),
+      },
+    );
+    const json = await res.json();
+    if (!res.ok) throw new DataError(json.error || 'Failed to create worker user');
     return json;
   },
 

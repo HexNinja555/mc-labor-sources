@@ -12,11 +12,13 @@
   "dependencies": {
     "@babel/runtime": "^7.29.7",
     "@expo-google-fonts/montserrat": "^0.4.2",
+    "@expo/vector-icons": "~14.0.4",
     "@mc-labor/shared": "workspace:*",
     "@opentelemetry/api": "^1.9.1",
     "@supabase/supabase-js": "^2.49.1",
     "expo": "~52.0.0",
     "expo-font": "^13.0.4",
+    "expo-linear-gradient": "~14.0.2",
     "expo-location": "~18.0.0",
     "expo-router": "~4.0.0",
     "expo-status-bar": "~2.0.0",

@@ -1,8 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, FlatList, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
+import { FlatList, RefreshControl, View } from 'react-native';
 import { Link } from 'expo-router';
-import { brandStyles } from '@/theme/brand';
+import { EmptyState, ErrorBanner, ImageBanner, ListCard, LoadingView, Screen, screenLayout } from '@/components/ui';
+import { theme } from '@/theme/brand';
 import { mobileApi } from '@/lib/api';
+import { IMAGERY } from '@/constants/imagery';
+
+function formatAssignmentDate(value: string) {
+  const parsed = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
 
 export default function AssignmentsScreen() {
   const [items, setItems] = useState<Awaited<ReturnType<typeof mobileApi.getAssignments>>>([]);
@@ -13,8 +21,7 @@ export default function AssignmentsScreen() {
   const load = useCallback(async () => {
     setError('');
     try {
-      const data = await mobileApi.getAssignments();
-      setItems(data);
+      setItems(await mobileApi.getAssignments());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load assignments');
     }
@@ -30,45 +37,55 @@ export default function AssignmentsScreen() {
     setRefreshing(false);
   };
 
-  if (loading) {
-    return (
-      <View style={[brandStyles.screen, styles.center]}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
+  if (loading) return <LoadingView label="Loading assignments…" />;
 
   return (
-    <View style={brandStyles.screen}>
-      <Text style={styles.title}>My Assignments</Text>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+    <Screen padded={false}>
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        ListEmptyComponent={<Text style={styles.note}>No assignments found.</Text>}
+        ListHeaderComponent={
+          <>
+            <ImageBanner
+              variant="full"
+              source={IMAGERY.heroSite}
+              title="My Assignments"
+              subtitle="Your active and upcoming job sites"
+            />
+            <View style={screenLayout.listSpacer} />
+            {error ? (
+              <View style={screenLayout.itemWrap}>
+                <ErrorBanner message={error} />
+              </View>
+            ) : null}
+          </>
+        }
+        contentContainerStyle={screenLayout.listContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} />
+        }
+        ListEmptyComponent={
+          <View style={screenLayout.itemWrap}>
+            <EmptyState message="No assignments found." icon="📋" />
+          </View>
+        }
         renderItem={({ item }) => (
-          <Link href={`/assignments/${item.id}` as never} asChild>
-            <Pressable style={styles.card}>
-              <Text style={styles.cardTitle}>{item.jobSite?.name ?? 'Job Site'}</Text>
-              <Text style={styles.cardMeta}>{item.customer?.companyName}</Text>
-              <Text style={styles.cardMeta}>
-                {item.assignedDate} · {item.status}
-              </Text>
-            </Pressable>
-          </Link>
+          <View style={screenLayout.itemWrap}>
+            <Link href={`/assignments/${item.id}` as never} asChild>
+              <ListCard
+                size="comfortable"
+                titleLines={1}
+                icon="location-outline"
+                iconAccent="blue"
+                title={item.jobSite?.name ?? 'Job Site'}
+                subtitle={item.customer?.companyName}
+                meta={formatAssignmentDate(item.assignedDate)}
+                status={item.status}
+              />
+            </Link>
+          </View>
         )}
       />
-    </View>
+    </Screen>
   );
 }
-
-const styles = {
-  center: { justifyContent: 'center' as const, alignItems: 'center' as const },
-  title: brandStyles.title,
-  note: brandStyles.note,
-  error: { ...brandStyles.note, color: '#b91c1c', marginBottom: 8 },
-  card: { ...brandStyles.card, marginBottom: 12 },
-  cardTitle: { ...brandStyles.cardText, fontFamily: brandStyles.heading.fontFamily },
-  cardMeta: { ...brandStyles.note, marginTop: 4 },
-};

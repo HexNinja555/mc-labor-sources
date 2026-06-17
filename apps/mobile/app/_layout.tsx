@@ -18,8 +18,17 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <StatusBar style="light" />
-      <Stack screenOptions={headerScreenOptions} />
+      <StatusBar style="dark" />
+      <Stack screenOptions={headerScreenOptions}>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="assignments" options={{ headerShown: false }} />
+        <Stack.Screen name="notifications" options={{ headerShown: false }} />
+        <Stack.Screen name="job-orders" options={{ headerShown: false }} />
+        <Stack.Screen name="timesheets" options={{ headerShown: false }} />
+        <Stack.Screen name="safety-bulletins" options={{ headerShown: false }} />
+      </Stack>
     </AuthProvider>
   );
 }

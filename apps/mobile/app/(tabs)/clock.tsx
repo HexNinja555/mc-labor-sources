@@ -1,7 +1,21 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import * as Location from 'expo-location';
-import { brandStyles } from '@/theme/brand';
+import { Ionicons } from '@expo/vector-icons';
+import {
+  Button,
+  Card,
+  EmptyState,
+  ErrorBanner,
+  ImageBanner,
+  ListCard,
+  LoadingView,
+  Screen,
+  SectionTitle,
+  screenLayout,
+} from '@/components/ui';
+import { theme, fonts } from '@/theme/brand';
+import { IMAGERY } from '@/constants/imagery';
 import { mobileApi } from '@/lib/api';
 
 export default function ClockScreen() {
@@ -20,10 +34,11 @@ export default function ClockScreen() {
         mobileApi.getAssignments(),
         mobileApi.getActiveClockIn(),
       ]);
-      setAssignments(assignmentList.filter((a) => ['ACTIVE', 'ACCEPTED'].includes(a.status)));
+      const eligible = assignmentList.filter((a) => ['ACTIVE', 'ACCEPTED'].includes(a.status));
+      setAssignments(eligible);
       setActive(activeSession);
-      if (assignmentList.length && !selectedId) {
-        setSelectedId(assignmentList[0].id);
+      if (eligible.length && !selectedId) {
+        setSelectedId(eligible[0].id);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load clock data');
@@ -88,68 +103,121 @@ export default function ClockScreen() {
     }
   };
 
-  if (loading) {
-    return (
-      <View style={[brandStyles.screen, styles.center]}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
+  if (loading) return <LoadingView label="Loading clock status…" />;
 
   return (
-    <ScrollView style={brandStyles.screen}>
-      <Text style={styles.title}>Clock In / Out</Text>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+    <Screen scroll padded={false}>
+      <ImageBanner
+        variant="full"
+        source={IMAGERY.heroAttendance}
+        title="Clock In / Out"
+        subtitle="GPS-verified time tracking"
+      />
+      <View style={screenLayout.body}>
+        <ErrorBanner message={error} />
 
-      {active ? (
-        <View style={styles.activeCard}>
-          <Text style={styles.activeTitle}>Currently clocked in</Text>
-          <Text style={styles.meta}>{active.jobSiteName}</Text>
-          <Text style={styles.meta}>Since {new Date(active.clockInTime).toLocaleString()}</Text>
-          <Pressable style={styles.buttonDanger} onPress={onClockOut} disabled={actionLoading}>
-            <Text style={styles.buttonText}>{actionLoading ? 'Working...' : 'Clock Out'}</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <>
-          <Text style={styles.label}>Select assignment</Text>
-          {assignments.map((item) => (
-            <Pressable
-              key={item.id}
-              style={[styles.card, selectedId === item.id && styles.cardSelected]}
-              onPress={() => setSelectedId(item.id)}
-            >
-              <Text style={styles.cardTitle}>{item.jobSite?.name}</Text>
-              <Text style={styles.meta}>{item.customer?.companyName}</Text>
-            </Pressable>
-          ))}
-          <Pressable style={styles.button} onPress={onClockIn} disabled={actionLoading}>
-            <Text style={styles.buttonText}>{actionLoading ? 'Working...' : 'Clock In'}</Text>
-          </Pressable>
-        </>
-      )}
+        {active ? (
+          <Card variant="success" style={styles.activeCard}>
+            <View style={styles.activeHeader}>
+              <View style={styles.pulseDot} />
+              <Text style={styles.activeTitle}>Currently clocked in</Text>
+            </View>
+            <Text style={styles.activeSite}>{active.jobSiteName}</Text>
+            <Text style={styles.activeTime}>Since {new Date(active.clockInTime).toLocaleString()}</Text>
+            <Button
+              label={actionLoading ? 'Working…' : 'Clock Out'}
+              onPress={onClockOut}
+              loading={actionLoading}
+              variant="danger"
+              icon="log-out-outline"
+              style={styles.actionBtn}
+            />
+          </Card>
+        ) : (
+          <>
+            <SectionTitle>Select assignment</SectionTitle>
+            {assignments.length === 0 ? (
+              <EmptyState message="No active assignments available to clock in." icon="⏱️" />
+            ) : (
+              assignments.map((item) => (
+                <ListCard
+                  key={item.id}
+                  size="comfortable"
+                  titleLines={1}
+                  icon="location-outline"
+                  iconAccent="green"
+                  title={item.jobSite?.name ?? 'Job Site'}
+                  subtitle={item.customer?.companyName}
+                  selected={selectedId === item.id}
+                  onPress={() => setSelectedId(item.id)}
+                />
+              ))
+            )}
+            <Button
+              label={actionLoading ? 'Working…' : 'Clock In'}
+              onPress={onClockIn}
+              loading={actionLoading}
+              icon="log-in-outline"
+              style={styles.actionBtn}
+              disabled={assignments.length === 0}
+            />
+          </>
+        )}
 
-      {coords ? <Text style={styles.meta}>Last GPS: {coords}</Text> : null}
-    </ScrollView>
+        {coords ? (
+          <View style={styles.gpsRow}>
+            <Ionicons name="location-outline" size={14} color={theme.colors.textMuted} />
+            <Text style={styles.gpsText}>Last GPS: {coords}</Text>
+          </View>
+        ) : null}
+      </View>
+    </Screen>
   );
 }
 
-const styles = {
-  center: { justifyContent: 'center' as const, alignItems: 'center' as const, flex: 1 },
-  title: brandStyles.title,
-  label: { ...brandStyles.note, marginBottom: 8 },
-  meta: { ...brandStyles.note, marginTop: 4 },
-  error: { ...brandStyles.note, color: '#b91c1c', marginBottom: 8 },
-  card: { ...brandStyles.card, marginBottom: 10 },
-  cardSelected: { borderColor: '#0061be', borderWidth: 2 },
-  cardTitle: brandStyles.cardText,
-  activeCard: {
-    ...brandStyles.card,
-    backgroundColor: '#ecfdf5',
-    marginBottom: 16,
+const styles = StyleSheet.create({
+  activeCard: { marginTop: 4 },
+  activeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
   },
-  activeTitle: { ...brandStyles.cardText, color: '#047857' },
-  button: { ...brandStyles.button, marginTop: 16 },
-  buttonDanger: { ...brandStyles.button, marginTop: 16, backgroundColor: '#b91c1c' },
-  buttonText: brandStyles.buttonText,
-};
+  pulseDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: theme.colors.success,
+  },
+  activeTitle: {
+    fontFamily: fonts.semiBold,
+    fontSize: 14,
+    color: theme.colors.success,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  activeSite: {
+    fontFamily: fonts.bold,
+    fontSize: 20,
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  activeTime: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+  },
+  actionBtn: { marginTop: 16 },
+  gpsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 20,
+    justifyContent: 'center',
+  },
+  gpsText: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: theme.colors.textMuted,
+  },
+});

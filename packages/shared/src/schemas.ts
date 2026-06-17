@@ -64,6 +64,8 @@ export const createCustomerUserSchema = z.object({
   phone: z.string().optional(),
 });
 
+export const createWorkerUserSchema = createCustomerUserSchema;
+
 export const createJobSiteSchema = z.object({
   customerId: z.string().min(1, 'Customer is required'),
   name: z.string().min(1, 'Name is required'),
@@ -172,6 +174,7 @@ export const attendanceFilterSchema = z.object({
 });
 
 export type CreateCustomerUserInput = z.infer<typeof createCustomerUserSchema>;
+export type CreateWorkerUserInput = z.infer<typeof createWorkerUserSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>;
 export type CreateCustomerInput = z.infer<typeof createCustomerSchema>;

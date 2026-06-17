@@ -214,6 +214,13 @@ export interface CreateCustomerUserInput {
   phone?: string;
 }
 
+export interface CreateWorkerUserInput {
+  name: string;
+  email: string;
+  password: string;
+  phone?: string;
+}
+
 export interface AuthUser {
   id: string;
   name: string;

@@ -1,11 +1,42 @@
 import { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams, Link } from 'expo-router';
-import { brandStyles } from '@/theme/brand';
+import { Text, View, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import {
+  Button,
+  Card,
+  DetailRow,
+  ErrorBanner,
+  ImageBanner,
+  Screen,
+  SectionTitle,
+  StackAppHeader,
+  SummaryBar,
+  screenLayout,
+} from '@/components/ui';
+import { FF, fonts, statusColors } from '@/theme/brand';
+import { IMAGERY } from '@/constants/imagery';
 import { mobileApi } from '@/lib/api';
+
+function formatAssignmentDate(value: string) {
+  const parsed = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function formatShiftTime(start: string | null, end: string | null) {
+  if (!start && !end) return null;
+  if (start && end) return `${start} – ${end}`;
+  return start ?? end;
+}
 
 export default function AssignmentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const [item, setItem] = useState<Awaited<ReturnType<typeof mobileApi.getAssignment>> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -21,38 +52,87 @@ export default function AssignmentDetailScreen() {
 
   if (loading) {
     return (
-      <View style={[brandStyles.screen, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" />
-      </View>
+      <Screen padded={false}>
+        <StackAppHeader />
+        <ImageBanner variant="full" source={IMAGERY.heroSite} title="Assignment" subtitle="Loading details…" />
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={FF.primary} />
+        </View>
+      </Screen>
     );
   }
 
   if (error || !item) {
     return (
-      <View style={brandStyles.screen}>
-        <Text style={styles.error}>{error || 'Not found'}</Text>
-      </View>
+      <Screen padded={false}>
+        <StackAppHeader />
+        <ImageBanner variant="full" source={IMAGERY.heroSite} title="Assignment" />
+        <View style={screenLayout.body}>
+          <ErrorBanner message={error || 'Assignment not found'} />
+        </View>
+      </Screen>
     );
   }
 
+  const badge = statusColors(item.status);
+  const shift = formatShiftTime(item.startTime, item.endTime);
+  const siteName = item.jobSite?.name ?? 'Job Site';
+
   return (
-    <View style={brandStyles.screen}>
-      <Text style={styles.title}>{item.jobSite?.name}</Text>
-      <Text style={styles.meta}>{item.customer?.companyName}</Text>
-      <Text style={styles.meta}>{item.jobSite?.address}</Text>
-      <Text style={styles.meta}>Date: {item.assignedDate}</Text>
-      <Text style={styles.meta}>Status: {item.status}</Text>
-      {item.notes ? <Text style={styles.meta}>Notes: {item.notes}</Text> : null}
-      <Link href="/(tabs)/clock" style={styles.link}>
-        Go to Clock In / Out
-      </Link>
-    </View>
+    <Screen padded={false}>
+      <StackAppHeader />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={screenLayout.listContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <ImageBanner
+          variant="full"
+          source={IMAGERY.heroSite}
+          title={siteName}
+          subtitle={item.customer?.companyName}
+        />
+
+        <View style={screenLayout.body}>
+          <SummaryBar status={item.status} statusColors={badge} meta={formatAssignmentDate(item.assignedDate)} />
+
+          <SectionTitle>Details</SectionTitle>
+          <Card style={styles.detailsCard}>
+            <DetailRow icon="business-outline" label="Customer" value={item.customer?.companyName} />
+            <DetailRow icon="location-outline" label="Address" value={item.jobSite?.address} />
+            <DetailRow icon="calendar-outline" label="Date" value={formatAssignmentDate(item.assignedDate)} />
+            {shift ? <DetailRow icon="time-outline" label="Shift" value={shift} /> : null}
+            {item.notes ? <DetailRow icon="document-text-outline" label="Notes" value={item.notes} /> : null}
+          </Card>
+
+          <Button
+            label="Go to Clock In / Out"
+            onPress={() => router.push('/(tabs)/clock')}
+            icon="time-outline"
+            style={styles.action}
+          />
+        </View>
+      </ScrollView>
+    </Screen>
   );
 }
 
-const styles = {
-  title: brandStyles.title,
-  meta: { ...brandStyles.note, marginTop: 8 },
-  error: { ...brandStyles.note, color: '#b91c1c' },
-  link: { marginTop: 20, color: '#0061be', fontFamily: brandStyles.cardText.fontFamily },
-};
+const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+  },
+  detailsCard: {
+    paddingVertical: 4,
+    marginBottom: 8,
+  },
+  action: {
+    marginTop: 16,
+  },
+  loadingWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 80,
+  },
+});

@@ -4,7 +4,13 @@ import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createEmployeeSchema, EmployeeStatus, type CreateEmployeeInput } from '@mc-labor/shared';
+import {
+  createEmployeeSchema,
+  createWorkerUserSchema,
+  EmployeeStatus,
+  type CreateEmployeeInput,
+  type CreateWorkerUserInput,
+} from '@mc-labor/shared';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PageTitle } from '@/components/layout/PageTitle';
 import { BRAND_HERO_IMAGES } from '@/lib/navigation';
@@ -32,7 +38,10 @@ import { api, type Employee } from '@/lib/api-client';
 export default function EmployeesPage() {
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [userModalOpen, setUserModalOpen] = useState(false);
+  const [portalError, setPortalError] = useState('');
   const [editing, setEditing] = useState<Employee | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -60,6 +69,11 @@ export default function EmployeesPage() {
     },
   });
 
+  const userForm = useForm<CreateWorkerUserInput>({
+    resolver: zodResolver(createWorkerUserSchema),
+    defaultValues: { name: '', email: '', password: '' },
+  });
+
   const saveMutation = useMutation({
     mutationFn: async (values: CreateEmployeeInput) => {
       const payload = {
@@ -85,6 +99,32 @@ export default function EmployeesPage() {
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['employees'] }),
   });
+
+  const createUserMutation = useMutation({
+    mutationFn: (values: CreateWorkerUserInput) =>
+      api.createWorkerUser(selectedEmployee!.id, values),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      setUserModalOpen(false);
+      setPortalError('');
+      userForm.reset();
+    },
+    onError: (err: Error) => {
+      setPortalError(err.message || 'Failed to create worker user');
+    },
+  });
+
+  function openPortalAccess(emp: Employee) {
+    setSelectedEmployee(emp);
+    setPortalError('');
+    userForm.reset({
+      name: `${emp.firstName} ${emp.lastName}`.trim(),
+      email: emp.email || '',
+      password: '',
+      phone: emp.phone || '',
+    });
+    setUserModalOpen(true);
+  }
 
   function openCreate() {
     setEditing(null);
@@ -188,6 +228,15 @@ export default function EmployeesPage() {
                       <Button
                         size="sm"
                         variant="ghost"
+                        disabled={!emp.email}
+                        title={!emp.email ? 'Employee needs an email address' : undefined}
+                        onClick={() => openPortalAccess(emp)}
+                      >
+                        Create Portal Access
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
                         onClick={() => toggleStatusMutation.mutate(emp)}
                       >
                         {emp.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
@@ -248,6 +297,53 @@ export default function EmployeesPage() {
             </Button>
             <Button type="submit" loading={saveMutation.isPending}>
               {editing ? 'Save Changes' : 'Create Employee'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        open={userModalOpen}
+        onClose={() => {
+          setUserModalOpen(false);
+          setPortalError('');
+        }}
+        title={`Create Portal Access — ${selectedEmployee ? `${selectedEmployee.firstName} ${selectedEmployee.lastName}` : ''}`}
+      >
+        <form
+          onSubmit={userForm.handleSubmit((v) => {
+            setPortalError('');
+            createUserMutation.mutate(v);
+          })}
+          className="space-y-4"
+        >
+          {portalError ? (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {portalError}
+            </p>
+          ) : null}
+          <FormField label="Name" error={userForm.formState.errors.name?.message}>
+            <Input {...userForm.register('name')} className={portalFormFieldClassName} />
+          </FormField>
+          <FormField label="Email" error={userForm.formState.errors.email?.message}>
+            <Input type="email" {...userForm.register('email')} className={portalFormFieldClassName} />
+          </FormField>
+          <FormField label="Password" error={userForm.formState.errors.password?.message}>
+            <Input type="password" {...userForm.register('password')} className={portalFormFieldClassName} />
+          </FormField>
+          <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setUserModalOpen(false);
+                setPortalError('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" loading={createUserMutation.isPending}>
+              Create User
             </Button>
           </div>
         </form>

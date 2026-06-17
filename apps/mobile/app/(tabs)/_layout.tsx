@@ -1,30 +1,63 @@
 import { Redirect } from 'expo-router';
-import { ActivityIndicator, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { tabScreenOptions } from '@/theme/brand';
+import { FF, tabScreenOptions } from '@/theme/brand';
 import { useAuth } from '@/context/AuthContext';
+import { CustomTabBar, LoadingView, TabAppHeader } from '@/components/ui';
 
 export default function TabLayout() {
   const { user, loading } = useAuth();
 
-  if (loading) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
+  if (loading) return <LoadingView />;
 
   if (!user || user.role !== 'WORKER') {
     return <Redirect href="/(auth)/login" />;
   }
 
   return (
-    <Tabs screenOptions={tabScreenOptions}>
-      <Tabs.Screen name="index" options={{ title: 'Home' }} />
-      <Tabs.Screen name="assignments" options={{ title: 'Assignments' }} />
-      <Tabs.Screen name="clock" options={{ title: 'Clock' }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
+    <Tabs
+      tabBar={(props) => <CustomTabBar {...props} />}
+      safeAreaInsets={{ bottom: 0 }}
+      sceneStyle={{ backgroundColor: FF.bg }}
+      screenOptions={{
+        ...tabScreenOptions,
+        headerShown: true,
+        header: (props) => <TabAppHeader {...props} />,
+        tabBarShowLabel: true,
+      }}
+    >
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Home',
+          tabBarLabel: 'Home',
+          tabBarIcon: ({ color }) => <Ionicons name="home-outline" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="assignments"
+        options={{
+          title: 'Assignments',
+          tabBarLabel: 'Assignments',
+          tabBarIcon: ({ color }) => <Ionicons name="briefcase-outline" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="clock"
+        options={{
+          title: 'Clock',
+          tabBarLabel: 'Clock',
+          tabBarIcon: ({ color }) => <Ionicons name="time-outline" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarLabel: 'Profile',
+          tabBarIcon: ({ color }) => <Ionicons name="person-outline" size={22} color={color} />,
+        }}
+      />
     </Tabs>
   );
 }

@@ -1,65 +1,63 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, FlatList, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { Link } from 'expo-router';
-import { brandStyles } from '@/theme/brand';
+import { ListCard, StackListItem, StackListScreen } from '@/components/ui';
 import { mobileApi } from '@/lib/api';
+import { IMAGERY } from '@/constants/imagery';
 
 export default function JobOrdersScreen() {
   const [items, setItems] = useState<Awaited<ReturnType<typeof mobileApi.getJobOrders>>>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
 
   const load = useCallback(async () => {
-    const data = await mobileApi.getJobOrders();
-    setItems(data);
+    setError('');
+    try {
+      setItems(await mobileApi.getJobOrders());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load job orders');
+    }
   }, []);
 
   useEffect(() => {
     load().finally(() => setLoading(false));
   }, [load]);
 
-  if (loading) {
-    return (
-      <View style={[brandStyles.screen, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
-
   return (
-    <View style={brandStyles.screen}>
-      <Text style={styles.title}>Job Orders</Text>
-      <FlatList
-        data={items}
-        keyExtractor={(item) => item.id}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={async () => {
-              setRefreshing(true);
-              await load();
-              setRefreshing(false);
-            }}
-          />
-        }
-        ListEmptyComponent={<Text style={styles.note}>No job orders assigned.</Text>}
-        renderItem={({ item }) => (
+    <StackListScreen
+      loading={loading}
+      loadingLabel="Loading job orders…"
+      refreshing={refreshing}
+      onRefresh={async () => {
+        setRefreshing(true);
+        await load();
+        setRefreshing(false);
+      }}
+      error={error}
+      items={items}
+      keyExtractor={(item) => item.id}
+      banner={{
+        source: IMAGERY.heroWorkforce,
+        title: 'Job Orders',
+        subtitle: 'Review and acknowledge your orders',
+      }}
+      emptyMessage="No job orders assigned."
+      emptyIcon="📄"
+      renderItem={({ item }) => (
+        <StackListItem>
           <Link href={`/job-orders/${item.id}` as never} asChild>
-            <Pressable style={styles.card}>
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              <Text style={styles.meta}>{item.orderNumber} · {item.status}</Text>
-            </Pressable>
+            <ListCard
+              size="comfortable"
+              titleLines={1}
+              icon="document-text-outline"
+              iconAccent="indigo"
+              title={item.title}
+              meta={item.orderNumber}
+              status={item.status}
+            />
           </Link>
-        )}
-      />
-    </View>
+        </StackListItem>
+      )}
+    />
   );
 }
-
-const styles = {
-  title: brandStyles.title,
-  note: brandStyles.note,
-  card: { ...brandStyles.card, marginBottom: 12 },
-  cardTitle: brandStyles.cardText,
-  meta: { ...brandStyles.note, marginTop: 4 },
-};
