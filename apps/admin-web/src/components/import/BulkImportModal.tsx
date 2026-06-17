@@ -5,7 +5,7 @@ import type { ZodSchema } from 'zod';
 import * as XLSX from 'xlsx';
 import type { BulkImportResult } from '@mc-labor/shared';
 import { Button } from '@/components/ui/Button';
-import { Modal } from '@/components/ui/Modal';
+import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { FormField } from '@/components/ui/FormField';
 import { portalFormFieldClassName } from '@/components/portal';
@@ -185,13 +185,21 @@ export function BulkImportModal<TRow extends Record<string, unknown>>({
   };
 
   return (
-    <Modal open={open} onClose={handleClose} title={title} size="lg">
+    <Modal
+      open={open}
+      onClose={handleClose}
+      title={title}
+      subtitle="Upload a spreadsheet to bulk-create records"
+      icon="upload"
+      tone="success"
+      size="lg"
+    >
       {step === 'upload' && (
         <div className="space-y-4">
           <p className="text-sm text-slate-600">
             Upload a CSV or Excel file. Download the template to see expected columns.
           </p>
-          <Button type="button" variant="secondary" onClick={downloadTemplate}>
+          <Button type="button" variant="secondary" icon="download" onClick={downloadTemplate}>
             Download Template
           </Button>
           {extraOptions}
@@ -232,14 +240,14 @@ export function BulkImportModal<TRow extends Record<string, unknown>>({
               </FormField>
             ))}
           </div>
-          <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
-            <Button type="button" variant="secondary" onClick={() => setStep('upload')}>
+          <ModalFooter>
+            <Button type="button" variant="secondary" icon="arrowLeft" onClick={() => setStep('upload')}>
               Back
             </Button>
-            <Button type="button" onClick={() => setStep('preview')}>
+            <Button type="button" icon="eye" onClick={() => setStep('preview')}>
               Preview
             </Button>
-          </div>
+          </ModalFooter>
         </div>
       )}
 
@@ -280,19 +288,20 @@ export function BulkImportModal<TRow extends Record<string, unknown>>({
               </tbody>
             </table>
           </div>
-          <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
-            <Button type="button" variant="secondary" onClick={() => setStep('map')}>
+          <ModalFooter>
+            <Button type="button" variant="secondary" icon="arrowLeft" onClick={() => setStep('map')}>
               Back
             </Button>
             <Button
               type="button"
+              icon="upload"
               onClick={runImport}
               loading={importing}
               disabled={validRows.length === 0}
             >
               Import {validRows.length} row{validRows.length === 1 ? '' : 's'}
             </Button>
-          </div>
+          </ModalFooter>
         </div>
       )}
 
@@ -344,16 +353,16 @@ export function BulkImportModal<TRow extends Record<string, unknown>>({
                   </li>
                 ))}
               </ul>
-              <Button type="button" variant="secondary" size="sm" onClick={downloadErrorReport}>
+              <Button type="button" variant="secondary" size="sm" icon="download" onClick={downloadErrorReport}>
                 Download Error Report
               </Button>
             </div>
           )}
-          <div className="flex justify-end border-t border-gray-100 pt-4">
-            <Button type="button" onClick={handleClose}>
+          <ModalFooter>
+            <Button type="button" icon="checkCircle" onClick={handleClose}>
               Done
             </Button>
-          </div>
+          </ModalFooter>
         </div>
       )}
     </Modal>

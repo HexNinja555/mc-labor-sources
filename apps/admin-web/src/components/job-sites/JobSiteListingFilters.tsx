@@ -4,10 +4,8 @@ import { FormEvent } from 'react';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
+import { formControlClassName } from '@/components/ui/formStyles';
 import type { JobSiteFilterValues } from '@/lib/job-site-utils';
-
-const fieldClassName =
-  'rounded-xl border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20';
 
 interface JobSiteListingFiltersProps {
   filters: JobSiteFilterValues;
@@ -48,7 +46,7 @@ export function JobSiteListingFilters({
         placeholder="Keywords"
         value={filters.keywords}
         onChange={(event) => update({ keywords: event.target.value })}
-        className={fieldClassName}
+        className={formControlClassName}
       />
 
       <div
@@ -58,7 +56,7 @@ export function JobSiteListingFilters({
           <Select
             value={filters.customerId}
             onChange={(event) => update({ customerId: event.target.value })}
-            className={fieldClassName}
+            className={formControlClassName}
           >
             <option value="">All customers</option>
             {customers.map((customer) => (
@@ -72,7 +70,7 @@ export function JobSiteListingFilters({
         <Select
           value={filters.status}
           onChange={(event) => update({ status: event.target.value })}
-          className={fieldClassName}
+          className={formControlClassName}
         >
           <option value="">All statuses</option>
           <option value="ACTIVE">Active</option>
@@ -82,7 +80,7 @@ export function JobSiteListingFilters({
         <Select
           value={filters.location}
           onChange={(event) => update({ location: event.target.value })}
-          className={fieldClassName}
+          className={formControlClassName}
         >
           <option value="">All locations</option>
           {locations.map((location) => (
@@ -94,7 +92,7 @@ export function JobSiteListingFilters({
 
         <Button
           type="submit"
-          className="h-[42px] w-full rounded-xl normal-case tracking-normal shadow-sm"
+          className="h-[42px] w-full"
           aria-label="Search job sites"
         >
           <SearchIcon className="mr-2 h-4 w-4" />

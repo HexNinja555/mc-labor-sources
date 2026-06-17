@@ -50,7 +50,7 @@ export default function CustomerJobSitesPage() {
         <EmptyState title={data?.length ? 'No job sites match your filters' : 'No job sites'} />
       )}
       {filteredSites.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {filteredSites.map((site) => (
             <BrandJobSiteCard
               key={site.id}

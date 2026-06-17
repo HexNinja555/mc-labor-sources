@@ -32,8 +32,8 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { FormField } from '@/components/ui/FormField';
-import { Modal } from '@/components/ui/Modal';
-import { Table, Th, Td } from '@/components/ui/Table';
+import { Modal, ModalFooter } from '@/components/ui/Modal';
+import { Table, Th, Td, ThActions } from '@/components/ui/Table';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -148,10 +148,12 @@ export default function CustomersPage() {
         description="Manage customer companies and portal access"
         action={
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => setImportOpen(true)}>
+            <Button variant="secondary" icon="upload" onClick={() => setImportOpen(true)}>
               Import Customers
             </Button>
-            <Button onClick={openCreate}>Add Customer</Button>
+            <Button icon="plus" onClick={openCreate}>
+              Add Customer
+            </Button>
           </div>
         }
       />
@@ -207,7 +209,7 @@ export default function CustomersPage() {
       )}
       {filtered.length > 0 && (
         <PortalRecordsPanel title="Customer directory" count={filtered.length} countLabel="customers">
-          <Table>
+          <Table hasActions>
             <thead>
               <tr>
                 <Th>Company</Th>
@@ -215,7 +217,7 @@ export default function CustomersPage() {
                 <Th>Email</Th>
                 <Th>Job Sites</Th>
                 <Th>Status</Th>
-                <Th>Actions</Th>
+                <ThActions />
               </tr>
             </thead>
             <tbody>
@@ -245,18 +247,19 @@ export default function CustomersPage() {
                   </Td>
                   <Td>
                     <ActionCell>
-                      <Button size="sm" variant="secondary" onClick={() => openEdit(c)}>
+                      <Button size="sm" variant="secondary" icon="edit" onClick={() => openEdit(c)}>
                         Edit
                       </Button>
                       <Button
                         size="sm"
-                        variant="ghost"
+                        variant="softPrimary"
+                        icon="userPlus"
                         onClick={() => {
                           setSelectedCustomer(c);
                           setUserModalOpen(true);
                         }}
                       >
-                        Add Portal User
+                        Portal User
                       </Button>
                     </ActionCell>
                   </Td>
@@ -271,6 +274,9 @@ export default function CustomersPage() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title={editing ? 'Edit Customer' : 'Add Customer'}
+        subtitle={editing ? 'Update company and contact details' : 'Register a new customer company'}
+        icon={editing ? 'building' : 'plus'}
+        tone={editing ? 'primary' : 'success'}
         size="lg"
       >
         <form
@@ -303,21 +309,24 @@ export default function CustomersPage() {
               <option value="INACTIVE">Inactive</option>
             </Select>
           </FormField>
-          <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
-            <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>
+          <ModalFooter>
+            <Button type="button" variant="secondary" icon="cancel" onClick={() => setModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" loading={saveMutation.isPending}>
+            <Button type="submit" icon="save" loading={saveMutation.isPending}>
               {editing ? 'Save Changes' : 'Create Customer'}
             </Button>
-          </div>
+          </ModalFooter>
         </form>
       </Modal>
 
       <Modal
         open={userModalOpen}
         onClose={() => setUserModalOpen(false)}
-        title={`Create Portal User — ${selectedCustomer?.companyName}`}
+        title="Add Portal User"
+        subtitle={selectedCustomer ? `Portal access for ${selectedCustomer.companyName}` : undefined}
+        icon="userPlus"
+        tone="success"
       >
         <form
           onSubmit={userForm.handleSubmit((v) => createUserMutation.mutate(v))}
@@ -332,14 +341,14 @@ export default function CustomersPage() {
           <FormField label="Password" error={userForm.formState.errors.password?.message}>
             <Input type="password" {...userForm.register('password')} className={portalFormFieldClassName} />
           </FormField>
-          <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
-            <Button type="button" variant="secondary" onClick={() => setUserModalOpen(false)}>
+          <ModalFooter>
+            <Button type="button" variant="secondary" icon="cancel" onClick={() => setUserModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" loading={createUserMutation.isPending}>
+            <Button type="submit" icon="userPlus" loading={createUserMutation.isPending}>
               Create User
             </Button>
-          </div>
+          </ModalFooter>
         </form>
       </Modal>
 

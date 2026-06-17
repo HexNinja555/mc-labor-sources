@@ -19,6 +19,110 @@ interface BrandHeaderProps {
   showNav?: boolean;
 }
 
+function ChevronDownIcon({ className, open }: { className?: string; open?: boolean }) {
+  return (
+    <svg
+      className={cn('h-4 w-4 text-slate-400 transition-transform duration-200', open && 'rotate-180', className)}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden
+    >
+      <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function LogoutIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+      <path d="M16 17l5-5-5-5M21 12H9" />
+    </svg>
+  );
+}
+
+function UserProfileMenu({ user }: { user: AuthUser }) {
+  const [open, setOpen] = useState(false);
+  const initial = user.name?.charAt(0)?.toUpperCase() || 'U';
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className={cn(
+          'group flex items-center gap-2.5 rounded-xl border border-slate-200/90 bg-white py-1.5 pl-1.5 pr-2.5 shadow-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md focus:outline-none focus:ring-[3px] focus:ring-primary/15 sm:pr-3',
+          open && 'border-primary/30 shadow-md ring-[3px] ring-primary/10',
+        )}
+      >
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary via-primary-dark to-primary-darker text-sm font-bold text-white shadow-sm ring-2 ring-white">
+          {initial}
+        </span>
+        <span className="hidden max-w-[120px] truncate text-sm font-semibold text-slate-700 group-hover:text-slate-900 xl:block">
+          {user.name}
+        </span>
+        <ChevronDownIcon open={open} className="hidden sm:block" />
+      </button>
+
+      {open ? (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-slate-900/10 backdrop-blur-[1px]"
+            onClick={() => setOpen(false)}
+            aria-hidden
+          />
+          <div
+            className="modal-panel absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_16px_48px_rgba(15,23,42,0.14)] ring-1 ring-slate-900/5"
+            role="menu"
+          >
+            <div className="h-1 bg-gradient-to-r from-primary via-indigo-500 to-primary" />
+            <div className="border-b border-slate-100 bg-gradient-to-br from-slate-50 via-white to-blue-50/40 px-4 py-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-primary-dark to-primary-darker text-base font-bold text-white shadow-md ring-2 ring-white">
+                  {initial}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-slate-900">{user.name}</p>
+                  <p className="truncate text-xs text-slate-500">{user.email}</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-2">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  logout();
+                }}
+                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-red-600 transition-all duration-150 hover:bg-gradient-to-r hover:from-red-50 hover:to-red-50/50 hover:shadow-sm"
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-600 ring-1 ring-red-100">
+                  <LogoutIcon className="h-4 w-4" />
+                </span>
+                Logout
+              </button>
+            </div>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 function NavDropdown({ item, pathname, onNavigate }: { item: NavItem; pathname: string; onNavigate?: () => void }) {
   const [open, setOpen] = useState(false);
   const active = isNavGroupActive(item, pathname);
@@ -131,7 +235,6 @@ function MobileNavSection({
 export function BrandHeader({ navItems, portalHome, user, showNav = true }: BrandHeaderProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [userOpen, setUserOpen] = useState(false);
 
   const closeMobile = () => setMobileOpen(false);
 
@@ -174,40 +277,7 @@ export function BrandHeader({ navItems, portalHome, user, showNav = true }: Bran
                 <span>{BRAND_PHONE}</span>
               </a>
 
-              {user ? (
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setUserOpen(!userOpen)}
-                    className="flex items-center gap-2 py-1"
-                  >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-dark text-sm font-bold text-white">
-                      {user.name?.charAt(0) || 'U'}
-                    </span>
-                    <span className="hidden max-w-[120px] truncate text-base text-text xl:block">
-                      {user.name}
-                    </span>
-                  </button>
-                  {userOpen && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setUserOpen(false)} />
-                      <div className="absolute right-0 z-50 mt-2 w-52 border border-gray-200 bg-white py-1 shadow-lg">
-                        <div className="border-b border-gray-100 px-4 py-3">
-                          <p className="text-base font-medium text-gray-900">{user.name}</p>
-                          <p className="text-sm text-gray-500">{user.email}</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => logout()}
-                          className="w-full px-4 py-2.5 text-left text-base text-red-600 hover:bg-gray-50"
-                        >
-                          Logout
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ) : null}
+              {user ? <UserProfileMenu user={user} /> : null}
 
               {showNav && (
                 <button

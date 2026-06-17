@@ -11,7 +11,7 @@ interface FormFieldProps {
 export function FormField({ label, error, children, className }: FormFieldProps) {
   return (
     <div className={cn('space-y-1', className)}>
-      <label className="block text-xs font-medium uppercase tracking-widest text-gray-500">
+      <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500/90">
         {label}
       </label>
       {children}

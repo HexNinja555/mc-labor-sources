@@ -24,9 +24,9 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { FormField } from '@/components/ui/FormField';
-import { Modal } from '@/components/ui/Modal';
+import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { Textarea } from '@/components/ui/Textarea';
-import { Table, Th, Td } from '@/components/ui/Table';
+import { Table, Th, Td, ThActions } from '@/components/ui/Table';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -172,7 +172,7 @@ export default function JobOrdersPage() {
       <PageTitle
         title="Job Orders"
         description="Create and manage job orders for workers"
-        action={<Button onClick={openCreate}>Add Job Order</Button>}
+        action={<Button icon="plus" onClick={openCreate}>Add Job Order</Button>}
       />
 
       {data && data.length > 0 && (
@@ -242,7 +242,7 @@ export default function JobOrdersPage() {
       )}
       {data && data.length > 0 && (
         <PortalRecordsPanel title="Job orders" count={data.length} countLabel="orders">
-          <Table>
+          <Table hasActions>
             <thead>
               <tr>
                 <Th>Order</Th>
@@ -251,7 +251,7 @@ export default function JobOrdersPage() {
                 <Th>Employee</Th>
                 <Th>Status</Th>
                 <Th>Sent</Th>
-                <Th>Actions</Th>
+                <ThActions />
               </tr>
             </thead>
             <tbody>
@@ -277,12 +277,14 @@ export default function JobOrdersPage() {
                   </Td>
                   <Td>
                     <ActionCell>
-                      <Button size="sm" variant="secondary" onClick={() => openEdit(order)}>
+                      <Button size="sm" variant="secondary" icon="edit" onClick={() => openEdit(order)}>
                         Edit
                       </Button>
                       {order.status === 'DRAFT' && (
                         <Button
                           size="sm"
+                          variant="softPrimary"
+                          icon="send"
                           onClick={() => sendMutation.mutate(order.id)}
                           loading={sendMutation.isPending}
                         >
@@ -302,6 +304,9 @@ export default function JobOrdersPage() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title={editing ? 'Edit Job Order' : 'Add Job Order'}
+        subtitle={editing ? 'Update order details and assignment' : 'Create a new job order for a worker'}
+        icon={editing ? 'edit' : 'briefcase'}
+        tone={editing ? 'primary' : 'success'}
         size="lg"
       >
         <form onSubmit={form.handleSubmit((v) => saveMutation.mutate(v))} className="space-y-4">
@@ -351,14 +356,14 @@ export default function JobOrdersPage() {
           <FormField label="Safety Notes">
             <Textarea {...form.register('safetyNotes')} rows={2} className={portalFormFieldClassName} />
           </FormField>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>
+          <ModalFooter>
+            <Button type="button" variant="secondary" icon="cancel" onClick={() => setModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" loading={saveMutation.isPending}>
+            <Button type="submit" icon="save" loading={saveMutation.isPending}>
               {editing ? 'Save' : 'Create'}
             </Button>
-          </div>
+          </ModalFooter>
         </form>
       </Modal>
     </DashboardLayout>

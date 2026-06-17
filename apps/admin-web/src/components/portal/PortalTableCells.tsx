@@ -126,5 +126,5 @@ interface ActionCellProps {
 }
 
 export function ActionCell({ children }: ActionCellProps) {
-  return <div className="flex flex-wrap items-center gap-2">{children}</div>;
+  return <div className="portal-action-cell">{children}</div>;
 }

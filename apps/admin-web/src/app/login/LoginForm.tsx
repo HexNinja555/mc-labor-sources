@@ -13,10 +13,10 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { FormField } from '@/components/ui/FormField';
 import { BRAND_HERO_IMAGES } from '@/lib/navigation';
+import { formControlClassName } from '@/components/ui/formStyles';
 import './login.css';
 
-const inputClassName =
-  'rounded-xl border-gray-200 bg-gray-50/80 px-4 py-2.5 text-base transition-colors focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20';
+const inputClassName = `${formControlClassName} text-base`;
 
 export default function LoginForm() {
   const router = useRouter();
@@ -136,6 +136,7 @@ export default function LoginForm() {
                 <Button
                   type="submit"
                   size="lg"
+                  icon="login"
                   className="mt-2 w-full rounded-xl py-3 normal-case tracking-normal"
                   loading={loading}
                 >

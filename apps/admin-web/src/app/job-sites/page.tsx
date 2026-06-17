@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { FormField } from '@/components/ui/FormField';
-import { Modal } from '@/components/ui/Modal';
+import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { api, type JobSite } from '@/lib/api-client';
@@ -97,7 +97,7 @@ export default function JobSitesPage() {
       <BrandPageTitle
         title="Job Sites"
         description="Manage customer job sites"
-        action={<Button onClick={openCreate}>Add Job Site</Button>}
+        action={<Button icon="mapPin" onClick={openCreate}>Add Job Site</Button>}
       />
 
       <JobSiteListingFilters
@@ -113,7 +113,7 @@ export default function JobSitesPage() {
         <EmptyState title={data?.length ? 'No job sites match your filters' : 'No job sites found'} />
       )}
       {filteredSites.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {filteredSites.map((site) => (
             <BrandJobSiteCard
               key={site.id}
@@ -138,6 +138,9 @@ export default function JobSitesPage() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title={editing ? 'Edit Job Site' : 'Add Job Site'}
+        subtitle={editing ? 'Update site location and foreman contact' : 'Register a new customer job site'}
+        icon={editing ? 'edit' : 'mapPin'}
+        tone={editing ? 'primary' : 'success'}
         size="lg"
       >
         <form
@@ -188,14 +191,14 @@ export default function JobSitesPage() {
               <option value="INACTIVE">Inactive</option>
             </Select>
           </FormField>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>
+          <ModalFooter>
+            <Button type="button" variant="secondary" icon="cancel" onClick={() => setModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" loading={saveMutation.isPending}>
+            <Button type="submit" icon="save" loading={saveMutation.isPending}>
               {editing ? 'Save' : 'Create'}
             </Button>
-          </div>
+          </ModalFooter>
         </form>
       </Modal>
     </DashboardLayout>

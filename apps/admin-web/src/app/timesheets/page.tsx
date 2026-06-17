@@ -25,8 +25,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { FormField } from '@/components/ui/FormField';
-import { Modal } from '@/components/ui/Modal';
-import { Table, Th, Td } from '@/components/ui/Table';
+import { Modal, ModalFooter } from '@/components/ui/Modal';
+import { Table, Th, Td, ThActions } from '@/components/ui/Table';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -172,10 +172,10 @@ export default function TimesheetsPage() {
         description="View and manage employee timesheets"
         action={
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => setRollupOpen(true)}>
+            <Button variant="secondary" icon="calendar" onClick={() => setRollupOpen(true)}>
               Generate from Attendance
             </Button>
-            <Button onClick={() => setModalOpen(true)}>Add Timesheet</Button>
+            <Button icon="plus" onClick={() => setModalOpen(true)}>Add Timesheet</Button>
           </div>
         }
       />
@@ -240,7 +240,7 @@ export default function TimesheetsPage() {
       )}
       {data && data.length > 0 && (
         <PortalRecordsPanel title="Timesheet records" count={data.length} countLabel="timesheets">
-          <Table>
+          <Table hasActions>
             <thead>
               <tr>
                 <Th>Employee</Th>
@@ -249,7 +249,7 @@ export default function TimesheetsPage() {
                 <Th>Foreman</Th>
                 <Th>Status</Th>
                 <Th>Sent to Office</Th>
-                <Th>Actions</Th>
+                <ThActions />
               </tr>
             </thead>
             <tbody>
@@ -275,7 +275,8 @@ export default function TimesheetsPage() {
                     <ActionCell>
                       <Button
                         size="sm"
-                        variant="secondary"
+                        variant="softPrimary"
+                        icon="eye"
                         onClick={() => openDetail(ts)}
                       >
                         View
@@ -289,7 +290,15 @@ export default function TimesheetsPage() {
         </PortalRecordsPanel>
       )}
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add Timesheet" size="lg">
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="Add Timesheet"
+        subtitle="Create a manual timesheet entry"
+        icon="plus"
+        tone="success"
+        size="lg"
+      >
         <form onSubmit={form.handleSubmit((v) => createMutation.mutate(v))} className="space-y-4">
           <FormField label="Employee" error={form.formState.errors.employeeId?.message}>
             <Select {...form.register('employeeId')} className={portalFormFieldClassName}>
@@ -328,16 +337,23 @@ export default function TimesheetsPage() {
           <FormField label="Work Date">
             <Input type="date" {...form.register('workDate')} className={portalFormFieldClassName} />
           </FormField>
-          <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
-            <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>
+          <ModalFooter>
+            <Button type="button" variant="secondary" icon="cancel" onClick={() => setModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" loading={createMutation.isPending}>Create</Button>
-          </div>
+            <Button type="submit" icon="save" loading={createMutation.isPending}>Create</Button>
+          </ModalFooter>
         </form>
       </Modal>
 
-      <Modal open={detailOpen} onClose={() => setDetailOpen(false)} title="Timesheet Detail" size="lg">
+      <Modal
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        title="Timesheet Detail"
+        subtitle="Review hours, entries, and signature"
+        icon="eye"
+        size="lg"
+      >
         {selected && (
           <div className="space-y-5">
             <div className="rounded-xl border border-gray-100 bg-slate-50/80 px-4 py-3 text-sm text-slate-700">
@@ -392,27 +408,29 @@ export default function TimesheetsPage() {
                 />
               </div>
             )}
-            <div className="flex flex-wrap gap-2 border-t border-gray-100 pt-4">
+            <ModalFooter>
               {selected.status !== 'SIGNED' && selected.status !== 'SENT' && (
-                <Button onClick={() => setSignOpen(true)}>Sign Timesheet</Button>
+                <Button icon="signature" onClick={() => setSignOpen(true)}>Sign Timesheet</Button>
               )}
               {selected.signature && (
                 <>
                   <Button
                     variant="secondary"
+                    icon="send"
                     onClick={() => markSentMutation.mutate({ sentToCustomerOffice: true })}
                   >
                     Mark sent to customer
                   </Button>
                   <Button
                     variant="secondary"
+                    icon="send"
                     onClick={() => markSentMutation.mutate({ sentToMcLaborOffice: true })}
                   >
                     Mark sent to MC Labor
                   </Button>
                 </>
               )}
-            </div>
+            </ModalFooter>
           </div>
         )}
       </Modal>
@@ -421,6 +439,8 @@ export default function TimesheetsPage() {
         open={rollupOpen}
         onClose={() => setRollupOpen(false)}
         title="Generate from Attendance"
+        subtitle="Roll up daily drafts into a weekly timesheet"
+        icon="calendar"
         size="lg"
       >
         <div className="space-y-4">
@@ -490,12 +510,13 @@ export default function TimesheetsPage() {
               />
             </FormField>
           </div>
-          <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
-            <Button type="button" variant="secondary" onClick={() => setRollupOpen(false)}>
+          <ModalFooter>
+            <Button type="button" variant="secondary" icon="cancel" onClick={() => setRollupOpen(false)}>
               Cancel
             </Button>
             <Button
               type="button"
+              icon="calendar"
               onClick={() => rollupMutation.mutate()}
               loading={rollupMutation.isPending}
               disabled={
@@ -508,11 +529,17 @@ export default function TimesheetsPage() {
             >
               Generate Timesheet
             </Button>
-          </div>
+          </ModalFooter>
         </div>
       </Modal>
 
-      <Modal open={signOpen} onClose={() => setSignOpen(false)} title="Sign Timesheet">
+      <Modal
+        open={signOpen}
+        onClose={() => setSignOpen(false)}
+        title="Sign Timesheet"
+        subtitle="Capture foreman signature and contact details"
+        icon="signature"
+      >
         <div className="space-y-4">
           <FormField label="Foreman Name">
             <Input value={foremanName} onChange={(e) => setForemanName(e.target.value)} className={portalFormFieldClassName} />
@@ -528,13 +555,16 @@ export default function TimesheetsPage() {
           <FormField label="Signature">
             <SignaturePad onChange={setSignatureDataUrl} />
           </FormField>
-          <Button
-            onClick={() => signMutation.mutate()}
-            loading={signMutation.isPending}
-            disabled={!foremanName || !signatureDataUrl}
-          >
-            Save Signature
-          </Button>
+          <ModalFooter>
+            <Button
+              icon="save"
+              onClick={() => signMutation.mutate()}
+              loading={signMutation.isPending}
+              disabled={!foremanName || !signatureDataUrl}
+            >
+              Save Signature
+            </Button>
+          </ModalFooter>
         </div>
       </Modal>
     </DashboardLayout>

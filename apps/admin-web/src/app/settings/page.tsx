@@ -79,7 +79,7 @@ export default function SettingsPage() {
               Notification and email provider settings will be configured in Milestone 4.
             </p>
             <div className="border-t border-gray-100 pt-4">
-              <Button type="submit" loading={saveMutation.isPending}>
+              <Button type="submit" icon="save" loading={saveMutation.isPending}>
                 Save Settings
               </Button>
             </div>

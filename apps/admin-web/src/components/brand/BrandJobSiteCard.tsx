@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { IconBriefcase, IconBuilding } from '@/components/dashboard/DashboardIcons';
+import { IconBuilding } from '@/components/dashboard/DashboardIcons';
 import {
   formatJobSiteAddress,
   formatJobSiteLocation,
@@ -53,22 +53,22 @@ function IconUser({ className }: { className?: string }) {
   );
 }
 
-function MetaItem({
-  icon,
-  label,
-  value,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: ReactNode;
-}) {
+function MetaChip({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   return (
-    <div className="inline-flex min-w-0 items-center gap-2 text-sm text-slate-600">
-      <span className="text-primary/80" aria-hidden="true">
+    <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-slate-200/80 bg-white/90 px-2.5 py-1 text-xs font-medium text-slate-600 shadow-sm ring-1 ring-slate-900/[0.03]">
+      <span className="shrink-0 text-primary" aria-hidden="true">
         {icon}
       </span>
-      <span className="sr-only">{label}</span>
-      <span className="truncate">{value}</span>
+      <span className="truncate">{children}</span>
+    </span>
+  );
+}
+
+function DetailBlock({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="rounded-xl border border-white/80 bg-white/90 p-4 shadow-sm ring-1 ring-slate-900/[0.04]">
+      <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">{label}</p>
+      <div className="mt-1.5 text-sm leading-relaxed text-slate-700">{children}</div>
     </div>
   );
 }
@@ -89,116 +89,112 @@ export function BrandJobSiteCard({
 }: BrandJobSiteCardProps) {
   const [expanded, setExpanded] = useState(false);
 
-  const site = { name, address, city: city ?? null, state: state ?? null, zipCode, status: status ?? 'ACTIVE', foremanName, customer: customerName ? { companyName: customerName } : null };
+  const site = {
+    name,
+    address,
+    city: city ?? null,
+    state: state ?? null,
+    zipCode,
+    status: status ?? 'ACTIVE',
+    foremanName,
+    customer: customerName ? { companyName: customerName } : null,
+  };
   const location = formatJobSiteLocation(site);
   const summary = getJobSiteSummary(site, assignments.length);
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-shadow hover:shadow-md">
-      <header className="border-b border-gray-50 px-5 py-4 sm:px-6">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <h3 className="text-lg font-semibold tracking-tight text-slate-800 sm:text-xl">{name}</h3>
+    <article className="group relative overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-sm ring-1 ring-slate-900/5 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/10">
+      <div className="h-1 bg-gradient-to-r from-primary via-indigo-500 to-primary" />
 
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-            {status && (
-              <MetaItem
-                icon={<IconBriefcase className="h-4 w-4" />}
-                label="Status"
-                value={<Badge status={status} className="normal-case" />}
-              />
-            )}
-            <MetaItem
-              icon={<IconMapPin className="h-4 w-4" />}
-              label="Location"
-              value={location}
-            />
-            {customerName && (
-              <MetaItem
-                icon={<IconBuilding className="h-4 w-4" />}
-                label="Customer"
-                value={customerName}
-              />
-            )}
-            {foremanName && (
-              <MetaItem
-                icon={<IconUser className="h-4 w-4" />}
-                label="Foreman"
-                value={foremanName}
-              />
-            )}
+      <header className="border-b border-slate-100/80 bg-gradient-to-br from-slate-50/90 via-white to-blue-50/40 px-5 py-4 sm:px-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
+              <IconMapPin className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">{name}</h3>
+                {status ? <Badge status={status} className="rounded-full normal-case" /> : null}
+              </div>
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                <MetaChip icon={<IconMapPin className="h-3.5 w-3.5" />}>{location}</MetaChip>
+                {customerName ? (
+                  <MetaChip icon={<IconBuilding className="h-3.5 w-3.5" />}>{customerName}</MetaChip>
+                ) : null}
+                {foremanName ? (
+                  <MetaChip icon={<IconUser className="h-3.5 w-3.5" />}>{foremanName}</MetaChip>
+                ) : null}
+              </div>
+            </div>
           </div>
         </div>
       </header>
 
       <div className="px-5 py-4 sm:px-6">
-        <p className="text-sm leading-relaxed text-slate-600">{summary}</p>
+        <p className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3 text-sm leading-relaxed text-slate-600">
+          {summary}
+        </p>
 
-        <div className="mt-4 flex flex-wrap items-center gap-3">
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             size="sm"
-            className="rounded-lg border-slate-300 px-5 normal-case tracking-normal"
+            icon={expanded ? 'arrowLeft' : 'eye'}
             onClick={() => setExpanded((open) => !open)}
           >
             {expanded ? 'View less' : 'Read more'}
           </Button>
-          {onEdit && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="normal-case tracking-normal"
-              onClick={onEdit}
-            >
+          {onEdit ? (
+            <Button type="button" variant="softPrimary" size="sm" icon="edit" onClick={onEdit}>
               Edit
             </Button>
-          )}
+          ) : null}
         </div>
       </div>
 
-      {expanded && (
-        <div className="border-t border-gray-100 bg-slate-50/70 px-5 py-5 sm:px-6">
-          <dl className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Address</dt>
-              <dd className="mt-1 text-sm text-slate-700">{formatJobSiteAddress(site)}</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Foreman</dt>
-              <dd className="mt-1 text-sm text-slate-700">
-                {foremanName || 'Not assigned'}
-                {foremanPhone ? ` · ${foremanPhone}` : ''}
-                {foremanEmail ? ` · ${foremanEmail}` : ''}
-              </dd>
-            </div>
+      {expanded ? (
+        <div className="border-t border-slate-200/80 bg-gradient-to-br from-slate-50 via-white to-blue-50/30 px-5 py-5 sm:px-6">
+          <dl className="grid gap-3 sm:grid-cols-2">
+            <DetailBlock label="Address">{formatJobSiteAddress(site)}</DetailBlock>
+            <DetailBlock label="Foreman">
+              {foremanName || 'Not assigned'}
+              {foremanPhone ? ` · ${foremanPhone}` : ''}
+              {foremanEmail ? ` · ${foremanEmail}` : ''}
+            </DetailBlock>
           </dl>
 
-          <div className="mt-5">
-            <p className="text-sm font-semibold text-slate-800">
-              Assigned workers ({assignments.length})
-            </p>
+          <div className="mt-4 rounded-xl border border-slate-200/60 bg-white/70 p-4 shadow-sm ring-1 ring-slate-900/[0.03]">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-slate-800">Assigned workers</p>
+              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
+                {assignments.length}
+              </span>
+            </div>
             {assignments.length === 0 ? (
-              <p className="mt-2 text-sm text-slate-500">No workers assigned yet.</p>
+              <p className="mt-3 text-sm text-slate-500">No workers assigned yet.</p>
             ) : (
               <ul className="mt-3 space-y-2">
                 {assignments.map((assignment) => (
                   <li
                     key={assignment.id}
-                    className="flex items-center justify-between gap-4 rounded-xl border border-white bg-white px-4 py-3 text-sm text-slate-700 shadow-sm"
+                    className="flex items-center justify-between gap-4 rounded-xl border border-slate-100 bg-gradient-to-r from-white to-slate-50/50 px-4 py-3 text-sm text-slate-700 shadow-sm transition-colors hover:border-primary/15 hover:from-primary/[0.02] hover:to-blue-50/40"
                   >
-                    <span>
+                    <span className="font-medium">
                       {assignment.employee?.firstName} {assignment.employee?.lastName}
-                      {assignment.employee?.position ? ` — ${assignment.employee.position}` : ''}
+                      {assignment.employee?.position ? (
+                        <span className="font-normal text-slate-500"> — {assignment.employee.position}</span>
+                      ) : null}
                     </span>
-                    <Badge status={assignment.status} className="normal-case" />
+                    <Badge status={assignment.status} className="shrink-0 rounded-full normal-case" />
                   </li>
                 ))}
               </ul>
             )}
           </div>
         </div>
-      )}
+      ) : null}
     </article>
   );
 }

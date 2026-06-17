@@ -22,9 +22,9 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { FormField } from '@/components/ui/FormField';
-import { Modal } from '@/components/ui/Modal';
+import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { Textarea } from '@/components/ui/Textarea';
-import { Table, Th, Td } from '@/components/ui/Table';
+import { Table, Th, Td, ThActions } from '@/components/ui/Table';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -91,7 +91,7 @@ export default function DocumentsPage() {
       <PageTitle
         title="Documents"
         description="Upload and manage company documents"
-        action={<Button onClick={() => setModalOpen(true)}>Upload Document</Button>}
+        action={<Button icon="upload" onClick={() => setModalOpen(true)}>Upload Document</Button>}
       />
 
       {data && data.length > 0 && (
@@ -140,14 +140,14 @@ export default function DocumentsPage() {
       )}
       {filtered.length > 0 && (
         <PortalRecordsPanel title="Document library" count={filtered.length} countLabel="documents">
-          <Table>
+          <Table hasActions>
             <thead>
               <tr>
                 <Th>Title</Th>
                 <Th>Category</Th>
                 <Th>Uploaded By</Th>
                 <Th>File</Th>
-                <Th>Actions</Th>
+                <ThActions />
               </tr>
             </thead>
             <tbody>
@@ -173,7 +173,8 @@ export default function DocumentsPage() {
                     <ActionCell>
                       <Button
                         size="sm"
-                        variant="danger"
+                        variant="softDanger"
+                        icon="trash"
                         onClick={() => deleteMutation.mutate(doc.id)}
                       >
                         Delete
@@ -187,7 +188,14 @@ export default function DocumentsPage() {
         </PortalRecordsPanel>
       )}
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Upload Document">
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="Upload Document"
+        subtitle="Add a file to the company document library"
+        icon="upload"
+        tone="success"
+      >
         <div className="space-y-4">
           <FormField label="Title">
             <Input value={title} onChange={(e) => setTitle(e.target.value)} className={portalFormFieldClassName} />
@@ -214,16 +222,17 @@ export default function DocumentsPage() {
               className={portalFormFieldClassName}
             />
           </FormField>
-          <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
+          <ModalFooter>
+            <Button variant="secondary" icon="cancel" onClick={() => setModalOpen(false)}>Cancel</Button>
             <Button
+              icon="upload"
               onClick={() => uploadMutation.mutate()}
               loading={uploadMutation.isPending}
               disabled={!title || !file}
             >
               Upload
             </Button>
-          </div>
+          </ModalFooter>
         </div>
       </Modal>
     </DashboardLayout>

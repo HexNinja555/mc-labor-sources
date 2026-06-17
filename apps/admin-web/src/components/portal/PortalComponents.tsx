@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
+import { formControlClassName } from '@/components/ui/formStyles';
 
-export const portalFieldClassName =
-  'rounded-xl border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20';
+export const portalFieldClassName = formControlClassName;
 
 /** Use on inputs inside modals and forms for consistent portal styling */
 export const portalFormFieldClassName = portalFieldClassName;
@@ -92,7 +92,7 @@ export function PortalRecordsPanel({
           </span>
         )}
       </header>
-      <div className="dashboard-table p-2 sm:p-4">{children}</div>
+      <div className="dashboard-table px-1 py-2 sm:px-2 sm:py-3">{children}</div>
     </article>
   );
 }

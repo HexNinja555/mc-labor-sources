@@ -28,7 +28,7 @@ function HeroCaption({
       <h1 className="brand-hero-caption-title">{title}</h1>
       {ctaLabel && ctaHref && (
         <Link href={ctaHref} className="mt-4 inline-block">
-          <Button>{ctaLabel}</Button>
+          <Button icon="arrowRight">{ctaLabel}</Button>
         </Link>
       )}
     </div>
@@ -57,8 +57,10 @@ export function BrandHero({
           className="block h-auto w-full"
           sizes="100vw"
         />
-        <div className="absolute bottom-6 left-4 z-10 sm:bottom-8 sm:left-8 md:left-[5%]">
-          <HeroCaption title={title} ctaLabel={ctaLabel} ctaHref={ctaHref} />
+        <div className="absolute inset-x-0 bottom-0 z-10 pb-8">
+          <div className="brand-container">
+            <HeroCaption title={title} ctaLabel={ctaLabel} ctaHref={ctaHref} />
+          </div>
         </div>
       </section>
     );

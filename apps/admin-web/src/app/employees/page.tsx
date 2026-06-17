@@ -30,8 +30,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { FormField } from '@/components/ui/FormField';
-import { Modal } from '@/components/ui/Modal';
-import { Table, Th, Td } from '@/components/ui/Table';
+import { Modal, ModalFooter } from '@/components/ui/Modal';
+import { Table, Th, Td, ThActions } from '@/components/ui/Table';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -183,10 +183,12 @@ export default function EmployeesPage() {
         description="Manage MC Labor workforce"
         action={
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => setImportOpen(true)}>
+            <Button variant="secondary" icon="upload" onClick={() => setImportOpen(true)}>
               Import Employees
             </Button>
-            <Button onClick={openCreate}>Add Employee</Button>
+            <Button icon="plus" onClick={openCreate}>
+              Add Employee
+            </Button>
           </div>
         }
       />
@@ -220,7 +222,7 @@ export default function EmployeesPage() {
       )}
       {data && data.length > 0 && (
         <PortalRecordsPanel title="Employee directory" count={data.length} countLabel="employees">
-          <Table>
+          <Table hasActions>
             <thead>
               <tr>
                 <Th>Name</Th>
@@ -229,7 +231,7 @@ export default function EmployeesPage() {
                 <Th>Phone</Th>
                 <Th>Rate</Th>
                 <Th>Status</Th>
-                <Th>Actions</Th>
+                <ThActions />
               </tr>
             </thead>
             <tbody>
@@ -247,21 +249,23 @@ export default function EmployeesPage() {
                   </Td>
                   <Td>
                     <ActionCell>
-                      <Button size="sm" variant="secondary" onClick={() => openEdit(emp)}>
+                      <Button size="sm" variant="secondary" icon="edit" onClick={() => openEdit(emp)}>
                         Edit
                       </Button>
                       <Button
                         size="sm"
-                        variant="ghost"
+                        variant="softPrimary"
+                        icon="userPlus"
                         disabled={!emp.email}
                         title={!emp.email ? 'Employee needs an email address' : undefined}
                         onClick={() => openPortalAccess(emp)}
                       >
-                        Create Portal Access
+                        Portal Access
                       </Button>
                       <Button
                         size="sm"
-                        variant="ghost"
+                        variant={emp.status === 'ACTIVE' ? 'softDanger' : 'softPrimary'}
+                        icon={emp.status === 'ACTIVE' ? 'userMinus' : 'userCheck'}
                         onClick={() => toggleStatusMutation.mutate(emp)}
                       >
                         {emp.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
@@ -279,12 +283,12 @@ export default function EmployeesPage() {
         open={modalOpen}
         onClose={closeModal}
         title={editing ? 'Edit Employee' : 'Add Employee'}
+        subtitle={editing ? 'Update workforce profile and status' : 'Add a new worker to your directory'}
+        icon={editing ? 'edit' : 'plus'}
+        tone={editing ? 'primary' : 'success'}
         size="lg"
       >
-        <form
-          onSubmit={form.handleSubmit((v) => saveMutation.mutate(v))}
-          className="space-y-4"
-        >
+        <form onSubmit={form.handleSubmit((v) => saveMutation.mutate(v))} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <FormField label="First Name" error={form.formState.errors.firstName?.message}>
               <Input {...form.register('firstName')} className={portalFormFieldClassName} />
@@ -316,14 +320,18 @@ export default function EmployeesPage() {
               <option value="INACTIVE">Inactive</option>
             </Select>
           </FormField>
-          <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
-            <Button type="button" variant="secondary" onClick={closeModal}>
+          <ModalFooter>
+            <Button type="button" variant="secondary" icon="cancel" onClick={closeModal}>
               Cancel
             </Button>
-            <Button type="submit" loading={saveMutation.isPending}>
+            <Button
+              type="submit"
+              icon="save"
+              loading={saveMutation.isPending}
+            >
               {editing ? 'Save Changes' : 'Create Employee'}
             </Button>
-          </div>
+          </ModalFooter>
         </form>
       </Modal>
 
@@ -333,7 +341,14 @@ export default function EmployeesPage() {
           setUserModalOpen(false);
           setPortalError('');
         }}
-        title={`Create Portal Access — ${selectedEmployee ? `${selectedEmployee.firstName} ${selectedEmployee.lastName}` : ''}`}
+        title="Create Portal Access"
+        subtitle={
+          selectedEmployee
+            ? `Mobile login for ${selectedEmployee.firstName} ${selectedEmployee.lastName}`
+            : undefined
+        }
+        icon="userPlus"
+        tone="success"
       >
         <form
           onSubmit={userForm.handleSubmit((v) => {
@@ -356,10 +371,11 @@ export default function EmployeesPage() {
           <FormField label="Password" error={userForm.formState.errors.password?.message}>
             <Input type="password" {...userForm.register('password')} className={portalFormFieldClassName} />
           </FormField>
-          <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
+          <ModalFooter>
             <Button
               type="button"
               variant="secondary"
+              icon="cancel"
               onClick={() => {
                 setUserModalOpen(false);
                 setPortalError('');
@@ -367,10 +383,10 @@ export default function EmployeesPage() {
             >
               Cancel
             </Button>
-            <Button type="submit" loading={createUserMutation.isPending}>
+            <Button type="submit" icon="userPlus" loading={createUserMutation.isPending}>
               Create User
             </Button>
-          </div>
+          </ModalFooter>
         </form>
       </Modal>
 

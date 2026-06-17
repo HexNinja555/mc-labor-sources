@@ -20,9 +20,9 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { FormField } from '@/components/ui/FormField';
-import { Modal } from '@/components/ui/Modal';
+import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { Textarea } from '@/components/ui/Textarea';
-import { Table, Th, Td } from '@/components/ui/Table';
+import { Table, Th, Td, ThActions } from '@/components/ui/Table';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -79,7 +79,7 @@ export default function NotificationsPage() {
       <PageTitle
         title="Notifications"
         description="View system notifications"
-        action={<Button onClick={() => setModalOpen(true)}>Create Notification</Button>}
+        action={<Button icon="bell" onClick={() => setModalOpen(true)}>Create Notification</Button>}
       />
 
       {data && data.length > 0 && (
@@ -128,13 +128,13 @@ export default function NotificationsPage() {
       )}
       {filtered.length > 0 && (
         <PortalRecordsPanel title="Notification inbox" count={filtered.length}>
-          <Table>
+          <Table hasActions>
             <thead>
               <tr>
                 <Th>Notification</Th>
                 <Th>Type</Th>
                 <Th>Status</Th>
-                <Th>Actions</Th>
+                <ThActions />
               </tr>
             </thead>
             <tbody>
@@ -158,7 +158,7 @@ export default function NotificationsPage() {
                   <Td>
                     {!n.readAt && (
                       <ActionCell>
-                        <Button size="sm" variant="secondary" onClick={() => readMutation.mutate(n.id)}>
+                        <Button size="sm" variant="softPrimary" icon="check" onClick={() => readMutation.mutate(n.id)}>
                           Mark read
                         </Button>
                       </ActionCell>
@@ -171,7 +171,14 @@ export default function NotificationsPage() {
         </PortalRecordsPanel>
       )}
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Create Notification">
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="Create Notification"
+        subtitle="Send an alert to workers or supervisors"
+        icon="bell"
+        tone="success"
+      >
         <div className="space-y-4">
           <FormField label="Title">
             <Input value={title} onChange={(e) => setTitle(e.target.value)} className={portalFormFieldClassName} />
@@ -191,16 +198,17 @@ export default function NotificationsPage() {
               ))}
             </Select>
           </FormField>
-          <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
+          <ModalFooter>
+            <Button variant="secondary" icon="cancel" onClick={() => setModalOpen(false)}>Cancel</Button>
             <Button
+              icon="send"
               onClick={() => createMutation.mutate()}
               loading={createMutation.isPending}
               disabled={!title || !message}
             >
               Create
             </Button>
-          </div>
+          </ModalFooter>
         </div>
       </Modal>
     </DashboardLayout>

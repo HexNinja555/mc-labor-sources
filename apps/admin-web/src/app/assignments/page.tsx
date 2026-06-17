@@ -25,8 +25,8 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { FormField } from '@/components/ui/FormField';
-import { Modal } from '@/components/ui/Modal';
-import { Table, Th, Td } from '@/components/ui/Table';
+import { Modal, ModalFooter } from '@/components/ui/Modal';
+import { Table, Th, Td, ThActions } from '@/components/ui/Table';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -196,7 +196,7 @@ export default function AssignmentsPage() {
       <PageTitle
         title="Assignments"
         description="Assign employees to job sites"
-        action={<Button onClick={() => openCreate()}>New Assignment</Button>}
+        action={<Button icon="plus" onClick={() => openCreate()}>New Assignment</Button>}
       />
 
       {data && data.length > 0 && (
@@ -261,7 +261,7 @@ export default function AssignmentsPage() {
       )}
       {filtered.length > 0 && (
         <PortalRecordsPanel title="Assignment schedule" count={filtered.length} countLabel="assignments">
-          <Table>
+          <Table hasActions>
             <thead>
               <tr>
                 <Th>Employee</Th>
@@ -269,7 +269,7 @@ export default function AssignmentsPage() {
                 <Th>Date</Th>
                 <Th>Start</Th>
                 <Th>Status</Th>
-                <Th>Actions</Th>
+                <ThActions />
               </tr>
             </thead>
             <tbody>
@@ -302,15 +302,15 @@ export default function AssignmentsPage() {
                   </Td>
                   <Td>
                     <ActionCell>
-                      <Button size="sm" variant="secondary" onClick={() => openEdit(a)}>
+                      <Button size="sm" variant="secondary" icon="edit" onClick={() => openEdit(a)}>
                         Edit
                       </Button>
                       {OPEN_STATUSES.includes(a.status) ? (
                         <>
-                          <Button size="sm" variant="ghost" onClick={() => setEndTarget(a)}>
+                          <Button size="sm" variant="softDanger" icon="stop" onClick={() => setEndTarget(a)}>
                             End
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => openReassign(a)}>
+                          <Button size="sm" variant="softPrimary" icon="swap" onClick={() => openReassign(a)}>
                             Reassign
                           </Button>
                         </>
@@ -331,6 +331,9 @@ export default function AssignmentsPage() {
           setSaveError('');
         }}
         title={editing ? 'Edit Assignment' : 'New Assignment'}
+        subtitle={editing ? 'Update schedule and status' : 'Schedule an employee at a job site'}
+        icon={editing ? 'edit' : 'plus'}
+        tone={editing ? 'primary' : 'success'}
         size="lg"
       >
         <form
@@ -399,14 +402,14 @@ export default function AssignmentsPage() {
           <FormField label="Notes">
             <Textarea {...form.register('notes')} rows={2} className={portalFormFieldClassName} />
           </FormField>
-          <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
-            <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>
+          <ModalFooter>
+            <Button type="button" variant="secondary" icon="cancel" onClick={() => setModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" loading={saveMutation.isPending}>
+            <Button type="submit" icon="save" loading={saveMutation.isPending}>
               {editing ? 'Save Changes' : 'Create Assignment'}
             </Button>
-          </div>
+          </ModalFooter>
         </form>
       </Modal>
 
@@ -414,6 +417,9 @@ export default function AssignmentsPage() {
         open={!!endTarget}
         onClose={() => setEndTarget(null)}
         title="End Assignment"
+        subtitle="Choose how to close this assignment"
+        icon="stop"
+        tone="danger"
       >
         {endTarget ? (
           <div className="space-y-4">
@@ -421,24 +427,26 @@ export default function AssignmentsPage() {
               End assignment for <strong>{employeeName(endTarget)}</strong> at{' '}
               <strong>{endTarget.jobSite?.name}</strong>?
             </p>
-            <div className="flex flex-wrap justify-end gap-2">
-              <Button variant="secondary" onClick={() => setEndTarget(null)}>
+            <ModalFooter>
+              <Button variant="secondary" icon="cancel" onClick={() => setEndTarget(null)}>
                 Keep Open
               </Button>
               <Button
                 variant="ghost"
+                icon="cancel"
                 loading={endMutation.isPending}
                 onClick={() => endMutation.mutate({ id: endTarget.id, status: 'CANCELLED' })}
               >
                 Cancel Assignment
               </Button>
               <Button
+                icon="checkCircle"
                 loading={endMutation.isPending}
                 onClick={() => endMutation.mutate({ id: endTarget.id, status: 'COMPLETED' })}
               >
                 Mark Completed
               </Button>
-            </div>
+            </ModalFooter>
           </div>
         ) : null}
       </Modal>
@@ -447,6 +455,9 @@ export default function AssignmentsPage() {
         open={!!conflictPrompt}
         onClose={() => setConflictPrompt(null)}
         title="Assignment Conflict"
+        subtitle="This employee already has an open assignment on the selected date"
+        icon="swap"
+        tone="neutral"
       >
         {conflictPrompt ? (
           <div className="space-y-4">
@@ -464,17 +475,18 @@ export default function AssignmentsPage() {
             <p className="text-sm text-slate-600">
               End the existing assignment(s) and create this new one?
             </p>
-            <div className="flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => setConflictPrompt(null)}>
+            <ModalFooter>
+              <Button variant="secondary" icon="arrowLeft" onClick={() => setConflictPrompt(null)}>
                 Go Back
               </Button>
               <Button
+                icon="swap"
                 loading={conflictMutation.isPending}
                 onClick={() => conflictMutation.mutate(conflictPrompt.values)}
               >
                 End &amp; Create New
               </Button>
-            </div>
+            </ModalFooter>
           </div>
         ) : null}
       </Modal>

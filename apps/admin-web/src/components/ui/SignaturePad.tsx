@@ -75,7 +75,7 @@ export function SignaturePad({ onChange }: SignaturePadProps) {
         onTouchMove={move}
         onTouchEnd={end}
       />
-      <Button type="button" variant="ghost" size="sm" className="mt-2" onClick={clear}>
+      <Button type="button" variant="ghost" size="sm" icon="trash" className="mt-2" onClick={clear}>
         Clear signature
       </Button>
     </div>

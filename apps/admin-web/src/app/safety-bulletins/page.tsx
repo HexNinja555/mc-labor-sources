@@ -18,9 +18,9 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { FormField } from '@/components/ui/FormField';
-import { Modal } from '@/components/ui/Modal';
+import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { Textarea } from '@/components/ui/Textarea';
-import { Table, Th, Td } from '@/components/ui/Table';
+import { Table, Th, Td, ThActions } from '@/components/ui/Table';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -79,7 +79,7 @@ export default function SafetyBulletinsPage() {
       <PageTitle
         title="Safety Bulletins"
         description="Send safety notices to employees"
-        action={<Button onClick={() => setModalOpen(true)}>Create Bulletin</Button>}
+        action={<Button icon="plus" onClick={() => setModalOpen(true)}>Create Bulletin</Button>}
       />
 
       {data && data.length > 0 && (
@@ -106,14 +106,14 @@ export default function SafetyBulletinsPage() {
       )}
       {data && data.length > 0 && (
         <PortalRecordsPanel title="Safety bulletins" count={data.length} countLabel="bulletins">
-          <Table>
+          <Table hasActions>
             <thead>
               <tr>
                 <Th>Bulletin</Th>
                 <Th>Audience</Th>
                 <Th>Job Site</Th>
                 <Th>Status</Th>
-                <Th>Actions</Th>
+                <ThActions />
               </tr>
             </thead>
             <tbody>
@@ -139,6 +139,8 @@ export default function SafetyBulletinsPage() {
                       <ActionCell>
                         <Button
                           size="sm"
+                          variant="softPrimary"
+                          icon="send"
                           onClick={() => sendMutation.mutate(bulletin.id)}
                           loading={sendMutation.isPending}
                         >
@@ -154,7 +156,15 @@ export default function SafetyBulletinsPage() {
         </PortalRecordsPanel>
       )}
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Create Safety Bulletin" size="lg">
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="Create Safety Bulletin"
+        subtitle="Draft a safety notice for your workforce"
+        icon="bell"
+        tone="success"
+        size="lg"
+      >
         <div className="space-y-4">
           <FormField label="Title">
             <Input value={title} onChange={(e) => setTitle(e.target.value)} className={portalFormFieldClassName} />
@@ -184,16 +194,17 @@ export default function SafetyBulletinsPage() {
               </Select>
             </FormField>
           )}
-          <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
+          <ModalFooter>
+            <Button variant="secondary" icon="cancel" onClick={() => setModalOpen(false)}>Cancel</Button>
             <Button
+              icon="save"
               onClick={() => createMutation.mutate()}
               loading={createMutation.isPending}
               disabled={!title || !message}
             >
               Create
             </Button>
-          </div>
+          </ModalFooter>
         </div>
       </Modal>
     </DashboardLayout>
