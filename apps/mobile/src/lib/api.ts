@@ -90,6 +90,8 @@ function mapTimesheet(row: Record<string, unknown>) {
     totalHours: row.total_hours as string | number,
     status: row.status as string,
     workDate: (row.work_date as string) ?? null,
+    weekStartDate: (row.week_start_date as string) ?? null,
+    weekEndDate: (row.week_end_date as string) ?? null,
     jobSite: jobSite ? { name: jobSite.name as string } : undefined,
   };
 }
@@ -160,6 +162,7 @@ export const mobileApi = {
     assignmentId?: string;
     clockInLatitude?: number;
     clockInLongitude?: number;
+    clockInLocationLabel?: string | null;
   }) => {
     const me = await getMe();
     if (!me.employeeId) throw new MobileDataError('Worker profile required');
@@ -173,6 +176,7 @@ export const mobileApi = {
         clock_in_time: new Date().toISOString(),
         clock_in_latitude: payload.clockInLatitude ?? null,
         clock_in_longitude: payload.clockInLongitude ?? null,
+        clock_in_location_label: payload.clockInLocationLabel ?? null,
         status: 'CLOCKED_IN',
       })
       .select()
@@ -184,6 +188,7 @@ export const mobileApi = {
     attendanceId: string;
     clockOutLatitude?: number;
     clockOutLongitude?: number;
+    clockOutLocationLabel?: string | null;
   }) => {
     const { data: existing, error: fetchError } = await supabase
       .from('attendance_logs')
@@ -201,6 +206,7 @@ export const mobileApi = {
         clock_out_time: now.toISOString(),
         clock_out_latitude: payload.clockOutLatitude ?? null,
         clock_out_longitude: payload.clockOutLongitude ?? null,
+        clock_out_location_label: payload.clockOutLocationLabel ?? null,
         total_hours: totalHours,
         status: 'CLOCKED_OUT',
         updated_at: now.toISOString(),
@@ -209,6 +215,10 @@ export const mobileApi = {
       .select()
       .single();
     throwIf(error);
+    const { error: rpcError } = await supabase.rpc('upsert_daily_timesheet_from_attendance', {
+      p_attendance_log_id: payload.attendanceId,
+    });
+    throwIf(rpcError);
     return data;
   },
   getJobOrders: async () => {
@@ -270,6 +280,35 @@ export const mobileApi = {
       .order('created_at', { ascending: false });
     throwIf(error);
     return (data ?? []).map((row) => mapTimesheet(row as Record<string, unknown>));
+  },
+  getTimesheet: async (id: string) => {
+    const { data, error } = await supabase
+      .from('timesheets')
+      .select('*, job_site:job_sites(id, name), entries:timesheet_entries(*)')
+      .eq('id', id)
+      .single();
+    throwIf(error);
+    const jobSite = data.job_site as Record<string, unknown> | null;
+    const entries = (data.entries as Record<string, unknown>[] | null) ?? [];
+    return {
+      id: data.id as string,
+      totalHours: data.total_hours as string | number,
+      status: data.status as string,
+      workDate: (data.work_date as string) ?? null,
+      weekStartDate: (data.week_start_date as string) ?? null,
+      weekEndDate: (data.week_end_date as string) ?? null,
+      notes: (data.notes as string) ?? null,
+      jobSite: jobSite ? { name: jobSite.name as string } : undefined,
+      entries: entries.map((e) => ({
+        id: e.id as string,
+        workDate: e.work_date as string,
+        startTime: e.start_time as string,
+        endTime: e.end_time as string,
+        hours: e.hours as string | number,
+        breakMinutes: e.break_minutes as number,
+        notes: (e.notes as string) ?? null,
+      })),
+    };
   },
   getNotifications: async () => {
     const me = await getMe();

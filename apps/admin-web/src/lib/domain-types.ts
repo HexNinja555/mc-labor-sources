@@ -78,6 +78,8 @@ export interface AttendanceLog {
   clockInLongitude: string | number | null;
   clockOutLatitude: string | number | null;
   clockOutLongitude: string | number | null;
+  clockInLocationLabel?: string | null;
+  clockOutLocationLabel?: string | null;
   totalHours: string | number | null;
   status: string;
   employee?: { id: string; firstName: string; lastName: string };
@@ -94,6 +96,7 @@ export interface TimesheetEntry {
   breakMinutes: number;
   hours: string | number;
   notes: string | null;
+  attendanceLogId?: string | null;
 }
 
 export interface Timesheet {

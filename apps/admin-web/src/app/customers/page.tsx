@@ -7,9 +7,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   createCustomerSchema,
   createCustomerUserSchema,
+  bulkCustomerRowSchema,
   CustomerStatus,
   type CreateCustomerInput,
   type CreateCustomerUserInput,
+  type BulkCustomerRow,
 } from '@mc-labor/shared';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PageTitle } from '@/components/layout/PageTitle';
@@ -36,11 +38,25 @@ import { Badge } from '@/components/ui/Badge';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { api, type Customer } from '@/lib/api-client';
+import { BulkImportModal } from '@/components/import/BulkImportModal';
+
+const CUSTOMER_IMPORT_FIELDS = [
+  { key: 'companyName', label: 'Company Name', required: true },
+  { key: 'contactName', label: 'Contact Name' },
+  { key: 'contactEmail', label: 'Contact Email' },
+  { key: 'contactPhone', label: 'Contact Phone' },
+  { key: 'officeEmail', label: 'Office Email' },
+  { key: 'address', label: 'Address' },
+  { key: 'status', label: 'Status' },
+];
+
+const CUSTOMER_TEMPLATE_HEADERS = CUSTOMER_IMPORT_FIELDS.map((f) => f.label);
 
 export default function CustomersPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [userModalOpen, setUserModalOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -130,7 +146,14 @@ export default function CustomersPage() {
       <PageTitle
         title="Customers"
         description="Manage customer companies and portal access"
-        action={<Button onClick={openCreate}>Add Customer</Button>}
+        action={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => setImportOpen(true)}>
+              Import Customers
+            </Button>
+            <Button onClick={openCreate}>Add Customer</Button>
+          </div>
+        }
       />
 
       {data && data.length > 0 && (
@@ -319,6 +342,20 @@ export default function CustomersPage() {
           </div>
         </form>
       </Modal>
+
+      <BulkImportModal<BulkCustomerRow>
+        open={importOpen}
+        onClose={() => {
+          setImportOpen(false);
+          queryClient.invalidateQueries({ queryKey: ['customers'] });
+        }}
+        title="Import Customers"
+        fields={CUSTOMER_IMPORT_FIELDS}
+        rowSchema={bulkCustomerRowSchema}
+        onImport={(rows) => api.bulkCreateCustomers(rows)}
+        templateHeaders={CUSTOMER_TEMPLATE_HEADERS}
+        templateFilename="customer-import-template.xlsx"
+      />
     </DashboardLayout>
   );
 }

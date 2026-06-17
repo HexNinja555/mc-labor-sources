@@ -13,6 +13,7 @@ import {
   DateTimeCell,
   PersonCell,
   HoursCell,
+  GpsLocationCell,
 } from '@/components/portal';
 import { IconBuilding, IconClock, IconUsers } from '@/components/dashboard';
 import { Input } from '@/components/ui/Input';
@@ -164,6 +165,7 @@ export default function AttendancePage() {
                 <Th>Clock Out</Th>
                 <Th>Hours</Th>
                 <Th>GPS In</Th>
+                <Th>GPS Out</Th>
                 <Th>Status</Th>
               </tr>
             </thead>
@@ -184,10 +186,19 @@ export default function AttendancePage() {
                   <Td>
                     <HoursCell value={log.totalHours} />
                   </Td>
-                  <Td className="text-xs text-gray-500">
-                    {log.clockInLatitude && log.clockInLongitude
-                      ? `${Number(log.clockInLatitude).toFixed(4)}, ${Number(log.clockInLongitude).toFixed(4)}`
-                      : '—'}
+                  <Td>
+                    <GpsLocationCell
+                      lat={log.clockInLatitude}
+                      lng={log.clockInLongitude}
+                      label={log.clockInLocationLabel}
+                    />
+                  </Td>
+                  <Td>
+                    <GpsLocationCell
+                      lat={log.clockOutLatitude}
+                      lng={log.clockOutLongitude}
+                      label={log.clockOutLocationLabel}
+                    />
                   </Td>
                   <Td>
                     <Badge status={log.status} className="rounded-full normal-case tracking-normal" />

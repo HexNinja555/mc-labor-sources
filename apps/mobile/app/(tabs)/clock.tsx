@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
+import { formatCoordsWithLabel, formatLocationLabel } from '@mc-labor/shared';
 import {
   Button,
   Card,
@@ -25,7 +26,9 @@ export default function ClockScreen() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState('');
-  const [coords, setCoords] = useState<string | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lng: number; label: string | null } | null>(
+    null,
+  );
 
   const load = useCallback(async () => {
     setError('');
@@ -55,8 +58,23 @@ export default function ClockScreen() {
       throw new Error('Location permission is required to clock in/out');
     }
     const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-    setCoords(`${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`);
-    return position.coords;
+    const { latitude, longitude } = position.coords;
+    let label: string | null = null;
+    try {
+      const [geo] = await Location.reverseGeocodeAsync({ latitude, longitude });
+      if (geo) {
+        label = formatLocationLabel({
+          city: geo.city ?? geo.subregion,
+          region: geo.region,
+          subregion: geo.district,
+          country: geo.country,
+        });
+      }
+    } catch {
+      // coords still valid without label
+    }
+    setCoords({ lat: latitude, lng: longitude, label });
+    return { latitude, longitude, label };
   };
 
   const onClockIn = async () => {
@@ -75,6 +93,7 @@ export default function ClockScreen() {
         assignmentId: assignment.id,
         clockInLatitude: coordsPos.latitude,
         clockInLongitude: coordsPos.longitude,
+        clockInLocationLabel: coordsPos.label,
       });
       await load();
     } catch (err) {
@@ -94,6 +113,7 @@ export default function ClockScreen() {
         attendanceId: active.id,
         clockOutLatitude: coordsPos.latitude,
         clockOutLongitude: coordsPos.longitude,
+        clockOutLocationLabel: coordsPos.label,
       });
       await load();
     } catch (err) {
@@ -167,7 +187,9 @@ export default function ClockScreen() {
         {coords ? (
           <View style={styles.gpsRow}>
             <Ionicons name="location-outline" size={14} color={theme.colors.textMuted} />
-            <Text style={styles.gpsText}>Last GPS: {coords}</Text>
+            <Text style={styles.gpsText}>
+              Last GPS: {formatCoordsWithLabel(coords.lat, coords.lng, coords.label)}
+            </Text>
           </View>
         ) : null}
       </View>

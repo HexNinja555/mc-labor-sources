@@ -20,6 +20,7 @@ import type {
   CreateCustomerUserInput,
   CreateWorkerUserInput,
 } from '../domain-types';
+import type { BulkCustomerRow, BulkEmployeeRow, BulkImportResult } from '@mc-labor/shared';
 import { uploadDataUrl, uploadFile } from './storage';
 
 export class DataError extends Error {
@@ -134,6 +135,8 @@ function mapAttendance(row: Record<string, unknown>): AttendanceLog {
     clockInLongitude: (row.clock_in_longitude as string | number | null) ?? null,
     clockOutLatitude: (row.clock_out_latitude as string | number | null) ?? null,
     clockOutLongitude: (row.clock_out_longitude as string | number | null) ?? null,
+    clockInLocationLabel: (row.clock_in_location_label as string | null) ?? null,
+    clockOutLocationLabel: (row.clock_out_location_label as string | null) ?? null,
     totalHours: (row.total_hours as string | number | null) ?? null,
     status: row.status as string,
     employee: employee
@@ -209,6 +212,7 @@ function mapTimesheetEntry(row: Record<string, unknown>): TimesheetEntry {
     breakMinutes: row.break_minutes as number,
     hours: row.hours as string | number,
     notes: (row.notes as string) ?? null,
+    attendanceLogId: (row.attendance_log_id as string) ?? null,
   };
 }
 
@@ -512,6 +516,71 @@ export const data = {
     return { deleted: true };
   },
 
+  async bulkCreateCustomers(rows: BulkCustomerRow[]): Promise<BulkImportResult> {
+    const result: BulkImportResult = { imported: 0, skipped: 0, errors: [] };
+    const existing = await data.getCustomers();
+    const names = new Set(existing.map((c) => c.companyName.toLowerCase()));
+
+    const BATCH = 25;
+    for (let i = 0; i < rows.length; i += BATCH) {
+      const batch = rows.slice(i, i + BATCH);
+      for (let j = 0; j < batch.length; j++) {
+        const rowIndex = i + j + 1;
+        const row = batch[j];
+        const nameKey = row.companyName.trim().toLowerCase();
+        if (names.has(nameKey)) {
+          result.skipped += 1;
+          result.errors.push({ row: rowIndex, message: 'Duplicate company name' });
+          continue;
+        }
+        try {
+          await data.createCustomer({
+            companyName: row.companyName,
+            contactName: row.contactName || null,
+            contactEmail: row.contactEmail || null,
+            contactPhone: row.contactPhone || null,
+            officeEmail: row.officeEmail || null,
+            address: row.address || null,
+            status: row.status ?? 'ACTIVE',
+          });
+          names.add(nameKey);
+          result.imported += 1;
+        } catch (err) {
+          result.skipped += 1;
+          result.errors.push({
+            row: rowIndex,
+            message: err instanceof Error ? err.message : 'Insert failed',
+          });
+        }
+      }
+    }
+    return result;
+  },
+
+  async bulkCreateEmployees(
+    rows: BulkEmployeeRow[],
+    options?: { createPortalAccess?: boolean },
+  ): Promise<BulkImportResult> {
+    const { data: session } = await sb().auth.getSession();
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/bulk-create-workers`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.session?.access_token}`,
+        },
+        body: JSON.stringify({
+          rows,
+          createPortalAccess: options?.createPortalAccess ?? false,
+        }),
+      },
+    );
+    const json = await res.json();
+    if (!res.ok) throw new DataError(json.error || 'Bulk import failed');
+    return json as BulkImportResult;
+  },
+
   async createCustomerUser(
     customerId: string,
     input: CreateCustomerUserInput,
@@ -682,6 +751,10 @@ export const data = {
     if (payload.startTime !== undefined) update.start_time = payload.startTime;
     if (payload.endTime !== undefined) update.end_time = payload.endTime;
     if (payload.notes !== undefined) update.notes = payload.notes;
+    if (payload.employeeId !== undefined) update.employee_id = payload.employeeId;
+    if (payload.customerId !== undefined) update.customer_id = payload.customerId;
+    if (payload.jobSiteId !== undefined) update.job_site_id = payload.jobSiteId;
+    if (payload.assignedDate !== undefined) update.assigned_date = payload.assignedDate;
     const { data: row, error } = await sb()
       .from('job_assignments')
       .update(update)
@@ -692,6 +765,61 @@ export const data = {
       .single();
     throwIf(error);
     return mapAssignment(row as Record<string, unknown>);
+  },
+
+  async getOpenAssignmentsForEmployee(
+    employeeId: string,
+    assignedDate: string,
+    excludeId?: string,
+  ): Promise<Assignment[]> {
+    let q = sb()
+      .from('job_assignments')
+      .select(
+        '*, employee:employees(*), customer:customers(id, company_name), job_site:job_sites(id, name, address)',
+      )
+      .eq('employee_id', employeeId)
+      .eq('assigned_date', assignedDate)
+      .in('status', ['PENDING', 'ACCEPTED', 'ACTIVE']);
+    if (excludeId) q = q.neq('id', excludeId);
+    const { data: rows, error } = await q;
+    throwIf(error);
+    return (rows ?? []).map((r) => mapAssignment(r as Record<string, unknown>));
+  },
+
+  async endAssignment(id: string, status: 'COMPLETED' | 'CANCELLED'): Promise<Assignment> {
+    return data.updateAssignment(id, { status });
+  },
+
+  async endAssignments(ids: string[], status: 'COMPLETED' | 'CANCELLED'): Promise<void> {
+    await Promise.all(ids.map((id) => data.endAssignment(id, status)));
+  },
+
+  async createAssignmentResolvingConflicts(
+    payload: Partial<Assignment>,
+    endConflicts = false,
+  ): Promise<Assignment> {
+    if (!payload.employeeId || !payload.assignedDate) {
+      return data.createAssignment(payload);
+    }
+    const conflicts = await data.getOpenAssignmentsForEmployee(
+      payload.employeeId,
+      payload.assignedDate.split('T')[0],
+    );
+    if (conflicts.length > 0 && !endConflicts) {
+      const names = conflicts
+        .map((c) => `${c.jobSite?.name ?? 'job site'} (${c.status})`)
+        .join(', ');
+      throw new DataError(
+        `Employee has open assignment(s) on this date: ${names}. End them first or confirm to replace.`,
+      );
+    }
+    if (conflicts.length > 0 && endConflicts) {
+      await data.endAssignments(
+        conflicts.map((c) => c.id),
+        'COMPLETED',
+      );
+    }
+    return data.createAssignment(payload);
   },
 
   async deleteAssignment(id: string): Promise<{ deleted: boolean }> {
@@ -1132,6 +1260,26 @@ export const data = {
       .single();
     throwIf(error);
     return mapTimesheet(row as Record<string, unknown>);
+  },
+
+  async rollupWeeklyTimesheet(payload: {
+    employeeId: string;
+    customerId: string;
+    jobSiteId: string;
+    weekStart: string;
+    weekEnd: string;
+    status?: string;
+  }): Promise<Timesheet> {
+    const { data: timesheetId, error } = await sb().rpc('rollup_weekly_timesheet', {
+      p_employee_id: payload.employeeId,
+      p_customer_id: payload.customerId,
+      p_job_site_id: payload.jobSiteId,
+      p_week_start: payload.weekStart,
+      p_week_end: payload.weekEnd,
+      p_status: payload.status ?? 'SUBMITTED',
+    });
+    throwIf(error);
+    return data.getTimesheet(timesheetId as string);
   },
 
   // --- Milestone 2: Documents ---

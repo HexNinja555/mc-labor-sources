@@ -37,12 +37,18 @@ export default function TimesheetsPage() {
   const [customerId, setCustomerId] = useState('');
   const [status, setStatus] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [rollupOpen, setRollupOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [signOpen, setSignOpen] = useState(false);
   const [selected, setSelected] = useState<Timesheet | null>(null);
   const [foremanName, setForemanName] = useState('');
   const [foremanEmail, setForemanEmail] = useState('');
   const [signatureDataUrl, setSignatureDataUrl] = useState('');
+  const [rollupEmployeeId, setRollupEmployeeId] = useState('');
+  const [rollupCustomerId, setRollupCustomerId] = useState('');
+  const [rollupJobSiteId, setRollupJobSiteId] = useState('');
+  const [rollupWeekStart, setRollupWeekStart] = useState('');
+  const [rollupWeekEnd, setRollupWeekEnd] = useState('');
   const queryClient = useQueryClient();
 
   const filters = useMemo(
@@ -96,6 +102,12 @@ export default function TimesheetsPage() {
     enabled: !!watchCustomerId,
   });
 
+  const { data: rollupJobSites } = useQuery({
+    queryKey: ['job-sites', rollupCustomerId],
+    queryFn: () => api.getJobSites({ customerId: rollupCustomerId }),
+    enabled: !!rollupCustomerId,
+  });
+
   const createMutation = useMutation({
     mutationFn: (values: CreateTimesheetInput) => api.createTimesheet(values),
     onSuccess: () => {
@@ -130,12 +142,42 @@ export default function TimesheetsPage() {
     },
   });
 
+  const rollupMutation = useMutation({
+    mutationFn: () =>
+      api.rollupWeeklyTimesheet({
+        employeeId: rollupEmployeeId,
+        customerId: rollupCustomerId,
+        jobSiteId: rollupJobSiteId,
+        weekStart: rollupWeekStart,
+        weekEnd: rollupWeekEnd,
+      }),
+    onSuccess: async (ts) => {
+      queryClient.invalidateQueries({ queryKey: ['timesheets'] });
+      setRollupOpen(false);
+      setSelected(ts);
+      setDetailOpen(true);
+    },
+  });
+
+  async function openDetail(ts: Timesheet) {
+    const full = await api.getTimesheet(ts.id);
+    setSelected(full);
+    setDetailOpen(true);
+  }
+
   return (
     <DashboardLayout heroTitle="Timesheets" heroImage={BRAND_HERO_IMAGES.timesheets}>
       <PageTitle
         title="Timesheets"
         description="View and manage employee timesheets"
-        action={<Button onClick={() => setModalOpen(true)}>Add Timesheet</Button>}
+        action={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => setRollupOpen(true)}>
+              Generate from Attendance
+            </Button>
+            <Button onClick={() => setModalOpen(true)}>Add Timesheet</Button>
+          </div>
+        }
       />
 
       {data && data.length > 0 && (
@@ -234,10 +276,7 @@ export default function TimesheetsPage() {
                       <Button
                         size="sm"
                         variant="secondary"
-                        onClick={() => {
-                          setSelected(ts);
-                          setDetailOpen(true);
-                        }}
+                        onClick={() => openDetail(ts)}
                       >
                         View
                       </Button>
@@ -307,7 +346,42 @@ export default function TimesheetsPage() {
               {selected.jobSite?.name}
               {' · '}
               <span className="font-semibold text-primary">{selected.totalHours}h</span>
+              {selected.weekStartDate && selected.weekEndDate ? (
+                <span className="text-gray-500">
+                  {' '}
+                  · Week {selected.weekStartDate} – {selected.weekEndDate}
+                </span>
+              ) : selected.workDate ? (
+                <span className="text-gray-500"> · {selected.workDate}</span>
+              ) : null}
             </div>
+            {selected.entries && selected.entries.length > 0 && (
+              <div className="rounded-xl border border-gray-100 bg-white p-4">
+                <p className="mb-3 text-xs font-medium uppercase tracking-widest text-gray-500">
+                  Time entries
+                </p>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-gray-500">
+                      <th className="pb-2">Date</th>
+                      <th className="pb-2">Start</th>
+                      <th className="pb-2">End</th>
+                      <th className="pb-2">Hours</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selected.entries.map((entry) => (
+                      <tr key={entry.id} className="border-t border-gray-50">
+                        <td className="py-2">{entry.workDate}</td>
+                        <td className="py-2">{entry.startTime}</td>
+                        <td className="py-2">{entry.endTime}</td>
+                        <td className="py-2 font-medium">{entry.hours}h</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
             {selected.signature?.signatureImageUrl && (
               <div className="rounded-xl border border-gray-100 bg-white p-4">
                 <p className="mb-2 text-xs font-medium uppercase tracking-widest text-gray-500">Signature</p>
@@ -341,6 +415,101 @@ export default function TimesheetsPage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      <Modal
+        open={rollupOpen}
+        onClose={() => setRollupOpen(false)}
+        title="Generate from Attendance"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            Roll up daily draft timesheets from attendance into a weekly timesheet.
+          </p>
+          <FormField label="Employee">
+            <Select
+              value={rollupEmployeeId}
+              onChange={(e) => setRollupEmployeeId(e.target.value)}
+              className={portalFormFieldClassName}
+            >
+              <option value="">Select employee</option>
+              {employees?.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.firstName} {e.lastName}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField label="Customer">
+            <Select
+              value={rollupCustomerId}
+              onChange={(e) => {
+                setRollupCustomerId(e.target.value);
+                setRollupJobSiteId('');
+              }}
+              className={portalFormFieldClassName}
+            >
+              <option value="">Select customer</option>
+              {customers?.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.companyName}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField label="Job Site">
+            <Select
+              value={rollupJobSiteId}
+              onChange={(e) => setRollupJobSiteId(e.target.value)}
+              className={portalFormFieldClassName}
+            >
+              <option value="">Select job site</option>
+              {rollupJobSites?.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Week start">
+              <Input
+                type="date"
+                value={rollupWeekStart}
+                onChange={(e) => setRollupWeekStart(e.target.value)}
+                className={portalFormFieldClassName}
+              />
+            </FormField>
+            <FormField label="Week end">
+              <Input
+                type="date"
+                value={rollupWeekEnd}
+                onChange={(e) => setRollupWeekEnd(e.target.value)}
+                className={portalFormFieldClassName}
+              />
+            </FormField>
+          </div>
+          <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
+            <Button type="button" variant="secondary" onClick={() => setRollupOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => rollupMutation.mutate()}
+              loading={rollupMutation.isPending}
+              disabled={
+                !rollupEmployeeId ||
+                !rollupCustomerId ||
+                !rollupJobSiteId ||
+                !rollupWeekStart ||
+                !rollupWeekEnd
+              }
+            >
+              Generate Timesheet
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       <Modal open={signOpen} onClose={() => setSignOpen(false)} title="Sign Timesheet">

@@ -7,9 +7,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   createEmployeeSchema,
   createWorkerUserSchema,
+  bulkEmployeeRowSchema,
   EmployeeStatus,
   type CreateEmployeeInput,
   type CreateWorkerUserInput,
+  type BulkEmployeeRow,
 } from '@mc-labor/shared';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PageTitle } from '@/components/layout/PageTitle';
@@ -34,10 +36,26 @@ import { Badge } from '@/components/ui/Badge';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { api, type Employee } from '@/lib/api-client';
+import { BulkImportModal } from '@/components/import/BulkImportModal';
+
+const EMPLOYEE_IMPORT_FIELDS = [
+  { key: 'firstName', label: 'First Name', required: true },
+  { key: 'lastName', label: 'Last Name', required: true },
+  { key: 'email', label: 'Email' },
+  { key: 'phone', label: 'Phone' },
+  { key: 'position', label: 'Position' },
+  { key: 'hourlyRate', label: 'Hourly Rate' },
+  { key: 'status', label: 'Status' },
+  { key: 'password', label: 'Portal Password' },
+];
+
+const EMPLOYEE_TEMPLATE_HEADERS = EMPLOYEE_IMPORT_FIELDS.map((f) => f.label);
 
 export default function EmployeesPage() {
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [createPortalAccess, setCreatePortalAccess] = useState(false);
   const [userModalOpen, setUserModalOpen] = useState(false);
   const [portalError, setPortalError] = useState('');
   const [editing, setEditing] = useState<Employee | null>(null);
@@ -163,7 +181,14 @@ export default function EmployeesPage() {
       <PageTitle
         title="Employees"
         description="Manage MC Labor workforce"
-        action={<Button onClick={openCreate}>Add Employee</Button>}
+        action={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => setImportOpen(true)}>
+              Import Employees
+            </Button>
+            <Button onClick={openCreate}>Add Employee</Button>
+          </div>
+        }
       />
 
       {data && data.length > 0 && (
@@ -348,6 +373,33 @@ export default function EmployeesPage() {
           </div>
         </form>
       </Modal>
+
+      <BulkImportModal<BulkEmployeeRow>
+        open={importOpen}
+        onClose={() => {
+          setImportOpen(false);
+          queryClient.invalidateQueries({ queryKey: ['employees'] });
+        }}
+        title="Import Employees"
+        fields={EMPLOYEE_IMPORT_FIELDS}
+        rowSchema={bulkEmployeeRowSchema}
+        onImport={(rows) =>
+          api.bulkCreateEmployees(rows, { createPortalAccess })
+        }
+        templateHeaders={EMPLOYEE_TEMPLATE_HEADERS}
+        templateFilename="employee-import-template.xlsx"
+        extraOptions={
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={createPortalAccess}
+              onChange={(e) => setCreatePortalAccess(e.target.checked)}
+              className="rounded border-gray-300"
+            />
+            Create portal logins for rows with email
+          </label>
+        }
+      />
     </DashboardLayout>
   );
 }

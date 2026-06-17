@@ -15,3 +15,4 @@ export {
   LinkCell,
   ActionCell,
 } from './PortalTableCells';
+export { GpsLocationCell } from './GpsLocationCell';

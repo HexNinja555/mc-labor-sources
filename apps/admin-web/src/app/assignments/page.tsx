@@ -30,13 +30,21 @@ import { Table, Th, Td } from '@/components/ui/Table';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { api, type Assignment } from '@/lib/api-client';
+import { api, type Assignment, DataError } from '@/lib/api-client';
+
+const OPEN_STATUSES = ['PENDING', 'ACCEPTED', 'ACTIVE'];
 
 export default function AssignmentsPage() {
   const [customerFilter, setCustomerFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Assignment | null>(null);
+  const [endTarget, setEndTarget] = useState<Assignment | null>(null);
+  const [conflictPrompt, setConflictPrompt] = useState<{
+    values: CreateAssignmentInput;
+    conflicts: Assignment[];
+  } | null>(null);
+  const [saveError, setSaveError] = useState('');
   const queryClient = useQueryClient();
 
   const { data: customers } = useQuery({
@@ -90,32 +98,75 @@ export default function AssignmentsPage() {
     enabled: !!watchCustomer,
   });
 
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['assignments'] });
+
   const saveMutation = useMutation({
     mutationFn: async (values: CreateAssignmentInput) => {
       if (editing) return api.updateAssignment(editing.id, values);
-      return api.createAssignment(values);
+      return api.createAssignmentResolvingConflicts(values, false);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['assignments'] });
+      invalidate();
       setModalOpen(false);
       setEditing(null);
+      setSaveError('');
+    },
+    onError: async (err: Error, values: CreateAssignmentInput) => {
+      if (!editing && err instanceof DataError && values.employeeId && values.assignedDate) {
+        const conflicts = await api.getOpenAssignmentsForEmployee(
+          values.employeeId,
+          values.assignedDate,
+        );
+        if (conflicts.length > 0) {
+          setConflictPrompt({ values, conflicts });
+          return;
+        }
+      }
+      setSaveError(err.message || 'Failed to save assignment');
     },
   });
 
-  function openCreate() {
+  const conflictMutation = useMutation({
+    mutationFn: (values: CreateAssignmentInput) =>
+      api.createAssignmentResolvingConflicts(values, true),
+    onSuccess: () => {
+      invalidate();
+      setModalOpen(false);
+      setEditing(null);
+      setConflictPrompt(null);
+      setSaveError('');
+    },
+    onError: (err: Error) => setSaveError(err.message || 'Failed to create assignment'),
+  });
+
+  const endMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: 'COMPLETED' | 'CANCELLED' }) =>
+      api.endAssignment(id, status),
+    onSuccess: () => {
+      invalidate();
+      setEndTarget(null);
+    },
+  });
+
+  function openCreate(prefill?: Partial<CreateAssignmentInput>) {
     setEditing(null);
+    setSaveError('');
     form.reset({
-      employeeId: '',
-      customerId: '',
-      jobSiteId: '',
-      assignedDate: new Date().toISOString().split('T')[0],
-      status: AssignmentStatus.PENDING,
+      employeeId: prefill?.employeeId ?? '',
+      customerId: prefill?.customerId ?? '',
+      jobSiteId: prefill?.jobSiteId ?? '',
+      assignedDate: prefill?.assignedDate ?? new Date().toISOString().split('T')[0],
+      startTime: prefill?.startTime ?? '',
+      endTime: prefill?.endTime ?? '',
+      status: prefill?.status ?? AssignmentStatus.PENDING,
+      notes: prefill?.notes ?? '',
     });
     setModalOpen(true);
   }
 
   function openEdit(a: Assignment) {
     setEditing(a);
+    setSaveError('');
     form.reset({
       employeeId: a.employeeId,
       customerId: a.customerId,
@@ -129,12 +180,23 @@ export default function AssignmentsPage() {
     setModalOpen(true);
   }
 
+  function openReassign(a: Assignment) {
+    openCreate({
+      employeeId: a.employeeId,
+      assignedDate: new Date().toISOString().split('T')[0],
+      status: AssignmentStatus.PENDING,
+    });
+  }
+
+  const employeeName = (a: Assignment) =>
+    a.employee ? `${a.employee.firstName} ${a.employee.lastName}` : 'Employee';
+
   return (
     <DashboardLayout heroTitle="Assignments" heroImage={BRAND_HERO_IMAGES.default}>
       <PageTitle
         title="Assignments"
         description="Assign employees to job sites"
-        action={<Button onClick={openCreate}>New Assignment</Button>}
+        action={<Button onClick={() => openCreate()}>New Assignment</Button>}
       />
 
       {data && data.length > 0 && (
@@ -243,6 +305,16 @@ export default function AssignmentsPage() {
                       <Button size="sm" variant="secondary" onClick={() => openEdit(a)}>
                         Edit
                       </Button>
+                      {OPEN_STATUSES.includes(a.status) ? (
+                        <>
+                          <Button size="sm" variant="ghost" onClick={() => setEndTarget(a)}>
+                            End
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => openReassign(a)}>
+                            Reassign
+                          </Button>
+                        </>
+                      ) : null}
                     </ActionCell>
                   </Td>
                 </tr>
@@ -254,7 +326,10 @@ export default function AssignmentsPage() {
 
       <Modal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          setModalOpen(false);
+          setSaveError('');
+        }}
         title={editing ? 'Edit Assignment' : 'New Assignment'}
         size="lg"
       >
@@ -262,6 +337,11 @@ export default function AssignmentsPage() {
           onSubmit={form.handleSubmit((v) => saveMutation.mutate(v))}
           className="space-y-4"
         >
+          {saveError ? (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {saveError}
+            </p>
+          ) : null}
           <FormField label="Customer" error={form.formState.errors.customerId?.message}>
             <Select {...form.register('customerId')} className={portalFormFieldClassName}>
               <option value="">Select customer</option>
@@ -283,7 +363,11 @@ export default function AssignmentsPage() {
             </Select>
           </FormField>
           <FormField label="Employee" error={form.formState.errors.employeeId?.message}>
-            <Select {...form.register('employeeId')} className={portalFormFieldClassName}>
+            <Select
+              {...form.register('employeeId')}
+              className={portalFormFieldClassName}
+              disabled={!!editing}
+            >
               <option value="">Select employee</option>
               {employees?.map((e) => (
                 <option key={e.id} value={e.id}>
@@ -324,6 +408,75 @@ export default function AssignmentsPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        open={!!endTarget}
+        onClose={() => setEndTarget(null)}
+        title="End Assignment"
+      >
+        {endTarget ? (
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600">
+              End assignment for <strong>{employeeName(endTarget)}</strong> at{' '}
+              <strong>{endTarget.jobSite?.name}</strong>?
+            </p>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button variant="secondary" onClick={() => setEndTarget(null)}>
+                Keep Open
+              </Button>
+              <Button
+                variant="ghost"
+                loading={endMutation.isPending}
+                onClick={() => endMutation.mutate({ id: endTarget.id, status: 'CANCELLED' })}
+              >
+                Cancel Assignment
+              </Button>
+              <Button
+                loading={endMutation.isPending}
+                onClick={() => endMutation.mutate({ id: endTarget.id, status: 'COMPLETED' })}
+              >
+                Mark Completed
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={!!conflictPrompt}
+        onClose={() => setConflictPrompt(null)}
+        title="Assignment Conflict"
+      >
+        {conflictPrompt ? (
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600">
+              This employee already has an open assignment on{' '}
+              <strong>{conflictPrompt.values.assignedDate}</strong>:
+            </p>
+            <ul className="list-inside list-disc text-sm text-slate-700">
+              {conflictPrompt.conflicts.map((c) => (
+                <li key={c.id}>
+                  {c.jobSite?.name} ({c.status})
+                </li>
+              ))}
+            </ul>
+            <p className="text-sm text-slate-600">
+              End the existing assignment(s) and create this new one?
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setConflictPrompt(null)}>
+                Go Back
+              </Button>
+              <Button
+                loading={conflictMutation.isPending}
+                onClick={() => conflictMutation.mutate(conflictPrompt.values)}
+              >
+                End &amp; Create New
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </Modal>
     </DashboardLayout>
   );

@@ -94,6 +94,10 @@ export const createAssignmentSchema = z.object({
 
 export const updateAssignmentSchema = createAssignmentSchema.partial();
 
+export const endAssignmentSchema = z.object({
+  status: z.enum(['COMPLETED', 'CANCELLED']),
+});
+
 export const clockInSchema = z.object({
   employeeId: z.string().min(1),
   customerId: z.string().min(1),
@@ -172,6 +176,54 @@ export const attendanceFilterSchema = z.object({
   jobSiteId: z.string().optional(),
   status: z.nativeEnum(AttendanceStatus).optional(),
 });
+
+export const bulkCustomerRowSchema = z.object({
+  companyName: z.string().min(1, 'Company name is required'),
+  contactName: z.string().optional(),
+  contactEmail: z.string().email().optional().or(z.literal('')),
+  contactPhone: z.string().optional(),
+  officeEmail: z.string().email().optional().or(z.literal('')),
+  address: z.string().optional(),
+  status: z.nativeEnum(CustomerStatus).optional(),
+});
+
+export const bulkEmployeeRowSchema = z.object({
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
+  email: z.string().email().optional().or(z.literal('')),
+  phone: z.string().optional(),
+  position: z.string().optional(),
+  hourlyRate: z.coerce.number().positive().optional(),
+  status: z.nativeEnum(EmployeeStatus).optional(),
+  createPortalAccess: z.boolean().optional(),
+  password: z.string().min(8).optional().or(z.literal('')),
+});
+
+export const bulkImportResultSchema = z.object({
+  imported: z.number(),
+  skipped: z.number(),
+  errors: z.array(
+    z.object({
+      row: z.number(),
+      message: z.string(),
+    }),
+  ),
+  results: z
+    .array(
+      z.object({
+        row: z.number(),
+        success: z.boolean(),
+        message: z.string().optional(),
+        id: z.string().optional(),
+        generatedPassword: z.string().optional(),
+      }),
+    )
+    .optional(),
+});
+
+export type BulkCustomerRow = z.infer<typeof bulkCustomerRowSchema>;
+export type BulkEmployeeRow = z.infer<typeof bulkEmployeeRowSchema>;
+export type BulkImportResult = z.infer<typeof bulkImportResultSchema>;
 
 export type CreateCustomerUserInput = z.infer<typeof createCustomerUserSchema>;
 export type CreateWorkerUserInput = z.infer<typeof createWorkerUserSchema>;
