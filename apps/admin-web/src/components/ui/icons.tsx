@@ -234,6 +234,52 @@ export function IconMapPin({ className }: { className?: string }) {
   );
 }
 
+export function IconUsers({ className }: { className?: string }) {
+  return (
+    <IconBase className={className}>
+      <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
+    </IconBase>
+  );
+}
+
+export function IconClock({ className }: { className?: string }) {
+  return (
+    <IconBase className={className}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </IconBase>
+  );
+}
+
+export function IconClipboard({ className }: { className?: string }) {
+  return (
+    <IconBase className={className}>
+      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+      <rect x="9" y="3" width="6" height="4" rx="1" />
+      <path d="M9 12h6M9 16h6" />
+    </IconBase>
+  );
+}
+
+export function IconDocument({ className }: { className?: string }) {
+  return (
+    <IconBase className={className}>
+      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" />
+      <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+    </IconBase>
+  );
+}
+
+export function IconShield({ className }: { className?: string }) {
+  return (
+    <IconBase className={className}>
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </IconBase>
+  );
+}
+
 export function IconLogin({ className }: { className?: string }) {
   return (
     <IconBase className={className}>

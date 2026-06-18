@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CustomerLayout } from '@/components/layout/CustomerLayout';
-import { PageTitle } from '@/components/layout/PageTitle';
+import { BrandPageTitle } from '@/components/brand';
 import { BRAND_HERO_IMAGES } from '@/lib/navigation';
 import {
   PortalFilterPanel,
@@ -35,7 +35,7 @@ export default function CustomerAttendancePage() {
 
   return (
     <CustomerLayout heroTitle="Attendance" heroImage={BRAND_HERO_IMAGES.attendance}>
-      <PageTitle title="Attendance" description="Clock-in and clock-out times for your job sites" />
+      <BrandPageTitle title="Attendance" description="Clock-in and clock-out times for your job sites" />
 
       {data && data.length > 0 && (
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">

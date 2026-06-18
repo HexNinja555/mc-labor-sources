@@ -4,9 +4,9 @@ import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createTimesheetSchema, type CreateTimesheetInput } from '@mc-labor/shared';
+import { createTimesheetSchema, signTimesheetSchema, type CreateTimesheetInput, type SignTimesheetInput } from '@mc-labor/shared';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { PageTitle } from '@/components/layout/PageTitle';
+import { BrandPageTitle } from '@/components/brand';
 import { BRAND_HERO_IMAGES } from '@/lib/navigation';
 import {
   PortalFilterPanel,
@@ -32,6 +32,7 @@ import { LoadingState } from '@/components/ui/LoadingState';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { api, type Timesheet } from '@/lib/api-client';
 import { formatEmployeeName } from '@/lib/portal-stats';
+import { downloadCsv } from '@/lib/export-csv';
 
 export default function TimesheetsPage() {
   const [customerId, setCustomerId] = useState('');
@@ -41,9 +42,6 @@ export default function TimesheetsPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [signOpen, setSignOpen] = useState(false);
   const [selected, setSelected] = useState<Timesheet | null>(null);
-  const [foremanName, setForemanName] = useState('');
-  const [foremanEmail, setForemanEmail] = useState('');
-  const [signatureDataUrl, setSignatureDataUrl] = useState('');
   const [rollupEmployeeId, setRollupEmployeeId] = useState('');
   const [rollupCustomerId, setRollupCustomerId] = useState('');
   const [rollupJobSiteId, setRollupJobSiteId] = useState('');
@@ -84,6 +82,23 @@ export default function TimesheetsPage() {
     };
   }, [data]);
 
+  function exportTimesheets() {
+    if (!data?.length) return;
+    downloadCsv(
+      `timesheets-${status || 'all'}.csv`,
+      ['Employee', 'Customer', 'Job Site', 'Hours', 'Foreman', 'Status', 'Sent to Office'],
+      data.map((ts) => [
+        formatEmployeeName(ts.employee),
+        ts.customer?.companyName ?? '',
+        ts.jobSite?.name ?? '',
+        String(ts.totalHours ?? ''),
+        ts.signature?.foremanName ?? '',
+        ts.status,
+        ts.signature?.sentToCustomerOffice ? 'Yes' : 'No',
+      ]),
+    );
+  }
+
   const form = useForm<CreateTimesheetInput>({
     resolver: zodResolver(createTimesheetSchema),
     defaultValues: {
@@ -92,6 +107,11 @@ export default function TimesheetsPage() {
       jobSiteId: '',
       totalHours: 40,
     },
+  });
+
+  const signForm = useForm<SignTimesheetInput>({
+    resolver: zodResolver(signTimesheetSchema),
+    defaultValues: { foremanName: '', foremanEmail: '', signatureDataUrl: '' },
   });
 
   const watchCustomerId = form.watch('customerId');
@@ -117,16 +137,17 @@ export default function TimesheetsPage() {
   });
 
   const signMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (values: SignTimesheetInput) =>
       api.signTimesheet(selected!.id, {
-        foremanName,
-        foremanEmail: foremanEmail || undefined,
-        signatureDataUrl,
+        foremanName: values.foremanName,
+        foremanEmail: values.foremanEmail || undefined,
+        signatureDataUrl: values.signatureDataUrl,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['timesheets'] });
       setSignOpen(false);
       setDetailOpen(false);
+      signForm.reset();
     },
   });
 
@@ -167,7 +188,7 @@ export default function TimesheetsPage() {
 
   return (
     <DashboardLayout heroTitle="Timesheets" heroImage={BRAND_HERO_IMAGES.timesheets}>
-      <PageTitle
+      <BrandPageTitle
         title="Timesheets"
         description="View and manage employee timesheets"
         action={
@@ -205,7 +226,7 @@ export default function TimesheetsPage() {
       )}
 
       <PortalFilterPanel>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <FormField label="Customer">
             <Select
               value={customerId}
@@ -231,6 +252,11 @@ export default function TimesheetsPage() {
               <option value="SENT">Sent</option>
             </Select>
           </FormField>
+          <div className="flex items-end">
+            <Button variant="secondary" icon="download" disabled={!data?.length} onClick={exportTimesheets}>
+              Export CSV
+            </Button>
+          </div>
         </div>
       </PortalFilterPanel>
 
@@ -410,7 +436,15 @@ export default function TimesheetsPage() {
             )}
             <ModalFooter>
               {selected.status !== 'SIGNED' && selected.status !== 'SENT' && (
-                <Button icon="signature" onClick={() => setSignOpen(true)}>Sign Timesheet</Button>
+                <Button
+                  icon="signature"
+                  onClick={() => {
+                    signForm.reset({ foremanName: '', foremanEmail: '', signatureDataUrl: '' });
+                    setSignOpen(true);
+                  }}
+                >
+                  Sign Timesheet
+                </Button>
               )}
               {selected.signature && (
                 <>
@@ -540,32 +574,27 @@ export default function TimesheetsPage() {
         subtitle="Capture foreman signature and contact details"
         icon="signature"
       >
-        <div className="space-y-4">
+        <form
+          className="space-y-4"
+          onSubmit={signForm.handleSubmit((values) => signMutation.mutate(values))}
+        >
           <FormField label="Foreman Name">
-            <Input value={foremanName} onChange={(e) => setForemanName(e.target.value)} className={portalFormFieldClassName} />
+            <Input {...signForm.register('foremanName')} className={portalFormFieldClassName} />
           </FormField>
           <FormField label="Foreman Email">
-            <Input
-              type="email"
-              value={foremanEmail}
-              onChange={(e) => setForemanEmail(e.target.value)}
-              className={portalFormFieldClassName}
-            />
+            <Input type="email" {...signForm.register('foremanEmail')} className={portalFormFieldClassName} />
           </FormField>
           <FormField label="Signature">
-            <SignaturePad onChange={setSignatureDataUrl} />
+            <SignaturePad
+              onChange={(url) => signForm.setValue('signatureDataUrl', url, { shouldValidate: true })}
+            />
           </FormField>
           <ModalFooter>
-            <Button
-              icon="save"
-              onClick={() => signMutation.mutate()}
-              loading={signMutation.isPending}
-              disabled={!foremanName || !signatureDataUrl}
-            >
+            <Button type="submit" icon="save" loading={signMutation.isPending}>
               Save Signature
             </Button>
           </ModalFooter>
-        </div>
+        </form>
       </Modal>
     </DashboardLayout>
   );

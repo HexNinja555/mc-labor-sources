@@ -21,13 +21,19 @@ export function BrandLogo({ className, priority = false, href, variant = 'header
       width={width}
       height={height}
       priority={priority}
-      className={cn('h-auto w-full', variant === 'header' ? 'max-w-[280px]' : 'max-w-[180px]', className)}
+      className={cn(
+        'h-auto',
+        variant === 'header'
+          ? 'w-[220px] sm:w-[260px] lg:w-[300px]'
+          : 'w-auto max-w-[180px]',
+        className,
+      )}
     />
   );
 
   if (href) {
     return (
-      <Link href={href} className="inline-block">
+      <Link href={href} className="inline-block shrink-0">
         {image}
       </Link>
     );

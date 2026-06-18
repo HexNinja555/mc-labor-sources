@@ -2,9 +2,12 @@
 
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { DocumentCategory } from '@mc-labor/shared';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { DocumentCategory, createDocumentSchema } from '@mc-labor/shared';
+import { z } from 'zod';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { PageTitle } from '@/components/layout/PageTitle';
+import { BrandPageTitle } from '@/components/brand';
 import { BRAND_HERO_IMAGES } from '@/lib/navigation';
 import {
   PortalFilterPanel,
@@ -30,15 +33,26 @@ import { LoadingState } from '@/components/ui/LoadingState';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { api } from '@/lib/api-client';
 
+const uploadDocumentSchema = createDocumentSchema.extend({
+  file: z.instanceof(File, { message: 'File is required' }),
+});
+
+type UploadDocumentInput = z.infer<typeof uploadDocumentSchema>;
+
 export default function DocumentsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<string>(DocumentCategory.OTHER);
-  const [file, setFile] = useState<File | null>(null);
   const queryClient = useQueryClient();
+
+  const form = useForm<UploadDocumentInput>({
+    resolver: zodResolver(uploadDocumentSchema),
+    defaultValues: {
+      title: '',
+      description: '',
+      category: DocumentCategory.OTHER,
+    },
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ['documents'],
@@ -68,16 +82,21 @@ export default function DocumentsPage() {
   }, [data]);
 
   const uploadMutation = useMutation({
-    mutationFn: () => {
-      if (!file) throw new Error('File required');
-      return api.uploadDocument({ title, description, category, file });
-    },
+    mutationFn: (values: UploadDocumentInput) =>
+      api.uploadDocument({
+        title: values.title,
+        description: values.description,
+        category: values.category,
+        file: values.file,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['documents'] });
       setModalOpen(false);
-      setTitle('');
-      setDescription('');
-      setFile(null);
+      form.reset({
+        title: '',
+        description: '',
+        category: DocumentCategory.OTHER,
+      });
     },
   });
 
@@ -88,7 +107,7 @@ export default function DocumentsPage() {
 
   return (
     <DashboardLayout heroTitle="Documents" heroImage={BRAND_HERO_IMAGES.inner}>
-      <PageTitle
+      <BrandPageTitle
         title="Documents"
         description="Upload and manage company documents"
         action={<Button icon="upload" onClick={() => setModalOpen(true)}>Upload Document</Button>}
@@ -196,20 +215,18 @@ export default function DocumentsPage() {
         icon="upload"
         tone="success"
       >
-        <div className="space-y-4">
+        <form
+          className="space-y-4"
+          onSubmit={form.handleSubmit((values) => uploadMutation.mutate(values))}
+        >
           <FormField label="Title">
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} className={portalFormFieldClassName} />
+            <Input {...form.register('title')} className={portalFormFieldClassName} />
           </FormField>
           <FormField label="Description">
-            <Textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-              className={portalFormFieldClassName}
-            />
+            <Textarea {...form.register('description')} rows={2} className={portalFormFieldClassName} />
           </FormField>
           <FormField label="Category">
-            <Select value={category} onChange={(e) => setCategory(e.target.value)} className={portalFormFieldClassName}>
+            <Select {...form.register('category')} className={portalFormFieldClassName}>
               {Object.values(DocumentCategory).map((c) => (
                 <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>
               ))}
@@ -218,22 +235,22 @@ export default function DocumentsPage() {
           <FormField label="File">
             <Input
               type="file"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) form.setValue('file', file, { shouldValidate: true });
+              }}
               className={portalFormFieldClassName}
             />
           </FormField>
           <ModalFooter>
-            <Button variant="secondary" icon="cancel" onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button
-              icon="upload"
-              onClick={() => uploadMutation.mutate()}
-              loading={uploadMutation.isPending}
-              disabled={!title || !file}
-            >
+            <Button variant="secondary" icon="cancel" type="button" onClick={() => setModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" icon="upload" loading={uploadMutation.isPending}>
               Upload
             </Button>
           </ModalFooter>
-        </div>
+        </form>
       </Modal>
     </DashboardLayout>
   );

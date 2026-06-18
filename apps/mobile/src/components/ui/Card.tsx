@@ -31,27 +31,6 @@ export function Card({ children, style, variant = 'default' }: CardProps) {
   );
 }
 
-type PressableCardProps = CardProps & {
-  onPress?: () => void;
-  showChevron?: boolean;
-};
-
-export function PressableCard({ children, style, variant, onPress, showChevron = true }: PressableCardProps) {
-  return (
-    <Pressable
-      style={({ pressed }) => [pressed && styles.pressed]}
-      onPress={onPress}
-    >
-      <View style={[styles.card, variant === 'selected' && styles.cardSelected, style]}>
-        <View style={styles.cardInner}>{children}</View>
-        {showChevron && onPress ? (
-          <Ionicons name="chevron-forward" size={18} color={theme.colors.textLight} />
-        ) : null}
-      </View>
-    </Pressable>
-  );
-}
-
 type ListCardProps = {
   title: string;
   subtitle?: string;
@@ -227,9 +206,6 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.primaryDark,
     borderWidth: 2,
     backgroundColor: theme.colors.infoBg,
-  },
-  cardInner: {
-    flex: 1,
   },
   pressed: {
     opacity: 0.92,

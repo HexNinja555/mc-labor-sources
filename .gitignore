@@ -9,6 +9,7 @@ uploads
 android
 ios
 *.tsbuildinfo
+supabase/.temp
 
 # Environment files
 .env

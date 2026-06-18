@@ -17,6 +17,7 @@ export const adminNavItems: NavItem[] = [
       { label: 'Attendance', href: '/attendance' },
       { label: 'Job Orders', href: '/job-orders' },
       { label: 'Timesheets', href: '/timesheets' },
+      { label: 'Reports', href: '/reports' },
     ],
   },
   {
@@ -28,6 +29,7 @@ export const adminNavItems: NavItem[] = [
     ],
   },
   { label: 'Settings', href: '/settings' },
+  { label: 'Supervisors', href: '/supervisors' },
 ];
 
 export const customerNavItems: NavItem[] = [
@@ -42,6 +44,7 @@ export const supervisorNavItems: NavItem[] = [
   { label: 'Job Sites', href: '/supervisor/job-sites' },
   { label: 'Attendance', href: '/supervisor/attendance' },
   { label: 'Timesheets', href: '/supervisor/timesheets' },
+  { label: 'Reports', href: '/supervisor/reports' },
 ];
 
 export const BRAND_HERO_IMAGES = {

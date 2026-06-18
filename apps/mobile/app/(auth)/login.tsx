@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { BRAND_PHONE, BRAND_PHONE_HREF, fonts, FF, cardShadow, accents, type AccentKey } from '@/theme/brand';
 import { AuthAppHeader, AuthHero, ErrorBanner, InfoBanner, Screen, screenLayout } from '@/components/ui';
-import { signIn } from '@/lib/api';
+import { signIn, getMe } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 
 function LoginField({
@@ -67,7 +67,7 @@ export default function LoginScreen() {
   const [formError, setFormError] = useState('');
 
   useEffect(() => {
-    if (error === 'not-worker') signOut();
+    if (error === 'not-worker' || error === 'not-mobile') signOut();
   }, [error, signOut]);
 
   const onSubmit = async () => {
@@ -76,7 +76,15 @@ export default function LoginScreen() {
     try {
       await signIn(email.trim(), password);
       await refresh();
-      router.replace('/(tabs)');
+      const profile = await getMe();
+      if (profile.role === 'WORKER') {
+        router.replace('/(tabs)');
+      } else if (profile.role === 'SUPERVISOR') {
+        router.replace('/(supervisor)/timesheets');
+      } else {
+        await signOut();
+        setFormError('This account uses the web portal. Workers and supervisors can sign in here.');
+      }
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Login failed');
     } finally {
@@ -107,8 +115,8 @@ export default function LoginScreen() {
             </View>
           </View>
 
-          {error === 'not-worker' ? (
-            <InfoBanner message="Workers only — use the web portal for other roles." />
+          {error === 'not-worker' || error === 'not-mobile' ? (
+            <InfoBanner message="Workers and supervisors only — admins and customers should use the web portal." />
           ) : null}
 
           <LoginField

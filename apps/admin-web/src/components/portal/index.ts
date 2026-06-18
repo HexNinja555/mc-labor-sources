@@ -16,3 +16,5 @@ export {
   ActionCell,
 } from './PortalTableCells';
 export { GpsLocationCell } from './GpsLocationCell';
+export { TimesheetDetailModal } from './TimesheetDetailModal';
+export { HoursReportPanel } from './HoursReportPanel';

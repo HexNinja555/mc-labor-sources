@@ -146,16 +146,29 @@ export const createTimesheetSchema = z.object({
 export const signTimesheetSchema = z.object({
   foremanName: z.string().min(1),
   foremanEmail: z.string().email().optional().or(z.literal('')),
-  signatureImageUrl: z.string().min(1),
+  signatureDataUrl: z.string().min(1),
 });
 
-export const createSafetyBulletinSchema = z.object({
-  title: z.string().min(1),
-  message: z.string().min(1),
-  fileUrl: z.string().optional(),
-  audience: z.nativeEnum(SafetyAudience),
-  jobSiteId: z.string().optional(),
-});
+export const createSafetyBulletinSchema = z
+  .object({
+    title: z.string().min(1),
+    message: z.string().min(1),
+    fileUrl: z.string().optional(),
+    audience: z.nativeEnum(SafetyAudience),
+    jobSiteId: z.string().optional(),
+    employeeIds: z.array(z.string()).optional(),
+  })
+  .refine(
+    (data) =>
+      data.audience !== SafetyAudience.SPECIFIC_JOB_SITE || !!data.jobSiteId,
+    { message: 'Job site is required for site-specific bulletins', path: ['jobSiteId'] },
+  )
+  .refine(
+    (data) =>
+      data.audience !== SafetyAudience.SPECIFIC_WORKERS ||
+      (data.employeeIds?.length ?? 0) > 0,
+    { message: 'Select at least one worker', path: ['employeeIds'] },
+  );
 
 export const createDocumentSchema = z.object({
   title: z.string().min(1),
@@ -199,6 +212,18 @@ export const bulkEmployeeRowSchema = z.object({
   password: z.string().min(8).optional().or(z.literal('')),
 });
 
+export const createSupervisorUserSchema = z.object({
+  name: z.string().min(1),
+  email: z.string().email(),
+  password: z.string().min(8),
+  phone: z.string().optional(),
+});
+
+export const assignSupervisorSitesSchema = z.object({
+  userId: z.string().uuid(),
+  jobSiteIds: z.array(z.string().uuid()),
+});
+
 export const bulkImportResultSchema = z.object({
   imported: z.number(),
   skipped: z.number(),
@@ -227,6 +252,7 @@ export type BulkImportResult = z.infer<typeof bulkImportResultSchema>;
 
 export type CreateCustomerUserInput = z.infer<typeof createCustomerUserSchema>;
 export type CreateWorkerUserInput = z.infer<typeof createWorkerUserSchema>;
+export type CreateSupervisorUserInput = z.infer<typeof createSupervisorUserSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>;
 export type CreateCustomerInput = z.infer<typeof createCustomerSchema>;
@@ -234,3 +260,4 @@ export type CreateJobSiteInput = z.infer<typeof createJobSiteSchema>;
 export type CreateAssignmentInput = z.infer<typeof createAssignmentSchema>;
 export type CreateJobOrderInput = z.infer<typeof createJobOrderSchema>;
 export type CreateTimesheetInput = z.infer<typeof createTimesheetSchema>;
+export type SignTimesheetInput = z.infer<typeof signTimesheetSchema>;

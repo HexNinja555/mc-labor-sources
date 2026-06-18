@@ -2,9 +2,12 @@
 
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { SafetyAudience } from '@mc-labor/shared';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { SafetyAudience, createSafetyBulletinSchema } from '@mc-labor/shared';
+import type { z } from 'zod';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { PageTitle } from '@/components/layout/PageTitle';
+import { BrandPageTitle } from '@/components/brand';
 import { BRAND_HERO_IMAGES } from '@/lib/navigation';
 import {
   PortalRecordsPanel,
@@ -24,15 +27,27 @@ import { Table, Th, Td, ThActions } from '@/components/ui/Table';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { api } from '@/lib/api-client';
+import { api, type SafetyBulletin } from '@/lib/api-client';
+
+type SafetyBulletinFormInput = z.infer<typeof createSafetyBulletinSchema>;
 
 export default function SafetyBulletinsPage() {
   const [modalOpen, setModalOpen] = useState(false);
-  const [title, setTitle] = useState('');
-  const [message, setMessage] = useState('');
-  const [audience, setAudience] = useState<string>(SafetyAudience.ALL_EMPLOYEES);
-  const [jobSiteId, setJobSiteId] = useState('');
   const queryClient = useQueryClient();
+
+  const form = useForm<SafetyBulletinFormInput>({
+    resolver: zodResolver(createSafetyBulletinSchema),
+    defaultValues: {
+      title: '',
+      message: '',
+      audience: SafetyAudience.ALL_EMPLOYEES,
+      jobSiteId: '',
+      employeeIds: [],
+    },
+  });
+
+  const audience = form.watch('audience');
+  const employeeIds = form.watch('employeeIds') ?? [];
 
   const { data, isLoading } = useQuery({
     queryKey: ['safety-bulletins'],
@@ -44,6 +59,11 @@ export default function SafetyBulletinsPage() {
     queryFn: () => api.getJobSites(),
   });
 
+  const { data: employees } = useQuery({
+    queryKey: ['employees-active'],
+    queryFn: () => api.getEmployees({ status: 'ACTIVE' }),
+  });
+
   const stats = useMemo(() => {
     const bulletins = data ?? [];
     return {
@@ -53,19 +73,29 @@ export default function SafetyBulletinsPage() {
     };
   }, [data]);
 
+  const canCreate = form.formState.isValid;
+
   const createMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (values: SafetyBulletinFormInput) =>
       api.createSafetyBulletin({
-        title,
-        message,
-        audience,
-        jobSiteId: audience === SafetyAudience.SPECIFIC_JOB_SITE ? jobSiteId : undefined,
+        title: values.title,
+        message: values.message,
+        audience: values.audience,
+        jobSiteId:
+          values.audience === SafetyAudience.SPECIFIC_JOB_SITE ? values.jobSiteId : undefined,
+        employeeIds:
+          values.audience === SafetyAudience.SPECIFIC_WORKERS ? values.employeeIds : undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['safety-bulletins'] });
       setModalOpen(false);
-      setTitle('');
-      setMessage('');
+      form.reset({
+        title: '',
+        message: '',
+        audience: SafetyAudience.ALL_EMPLOYEES,
+        jobSiteId: '',
+        employeeIds: [],
+      });
     },
   });
 
@@ -74,9 +104,32 @@ export default function SafetyBulletinsPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['safety-bulletins'] }),
   });
 
+  function toggleEmployee(id: string) {
+    const next = employeeIds.includes(id)
+      ? employeeIds.filter((x) => x !== id)
+      : [...employeeIds, id];
+    form.setValue('employeeIds', next, { shouldValidate: true });
+  }
+
+  function formatRecipients(bulletin: SafetyBulletin) {
+    if (!bulletin) return '—';
+    if (bulletin.audience === 'SPECIFIC_WORKERS' && bulletin.recipientEmployees?.length) {
+      const names = bulletin.recipientEmployees
+        .map((e) => `${e.firstName} ${e.lastName}`)
+        .slice(0, 2)
+        .join(', ');
+      const extra =
+        bulletin.recipientEmployees.length > 2
+          ? ` +${bulletin.recipientEmployees.length - 2}`
+          : '';
+      return names + extra;
+    }
+    return bulletin.jobSite?.name ?? '—';
+  }
+
   return (
     <DashboardLayout heroTitle="Safety Bulletins" heroImage={BRAND_HERO_IMAGES.inner}>
-      <PageTitle
+      <BrandPageTitle
         title="Safety Bulletins"
         description="Send safety notices to employees"
         action={<Button icon="plus" onClick={() => setModalOpen(true)}>Create Bulletin</Button>}
@@ -111,7 +164,7 @@ export default function SafetyBulletinsPage() {
               <tr>
                 <Th>Bulletin</Th>
                 <Th>Audience</Th>
-                <Th>Job Site</Th>
+                <Th>Target</Th>
                 <Th>Status</Th>
                 <ThActions />
               </tr>
@@ -126,7 +179,7 @@ export default function SafetyBulletinsPage() {
                     />
                   </Td>
                   <Td>{bulletin.audience.replace(/_/g, ' ')}</Td>
-                  <Td>{bulletin.jobSite?.name ?? '—'}</Td>
+                  <Td>{formatRecipients(bulletin)}</Td>
                   <Td>
                     {bulletin.sentAt ? (
                       <Badge status="SENT" className="rounded-full normal-case" />
@@ -165,20 +218,26 @@ export default function SafetyBulletinsPage() {
         tone="success"
         size="lg"
       >
-        <div className="space-y-4">
+        <form
+          className="space-y-4"
+          onSubmit={form.handleSubmit((values) => createMutation.mutate(values))}
+        >
           <FormField label="Title">
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} className={portalFormFieldClassName} />
+            <Input {...form.register('title')} className={portalFormFieldClassName} />
           </FormField>
           <FormField label="Message">
-            <Textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              rows={4}
-              className={portalFormFieldClassName}
-            />
+            <Textarea {...form.register('message')} rows={4} className={portalFormFieldClassName} />
           </FormField>
           <FormField label="Audience">
-            <Select value={audience} onChange={(e) => setAudience(e.target.value)} className={portalFormFieldClassName}>
+            <Select
+              {...form.register('audience')}
+              onChange={(e) => {
+                form.setValue('audience', e.target.value as SafetyAudience, { shouldValidate: true });
+                form.setValue('jobSiteId', '');
+                form.setValue('employeeIds', []);
+              }}
+              className={portalFormFieldClassName}
+            >
               {Object.values(SafetyAudience).map((a) => (
                 <option key={a} value={a}>{a.replace(/_/g, ' ')}</option>
               ))}
@@ -186,7 +245,7 @@ export default function SafetyBulletinsPage() {
           </FormField>
           {audience === SafetyAudience.SPECIFIC_JOB_SITE && (
             <FormField label="Job Site">
-              <Select value={jobSiteId} onChange={(e) => setJobSiteId(e.target.value)} className={portalFormFieldClassName}>
+              <Select {...form.register('jobSiteId')} className={portalFormFieldClassName}>
                 <option value="">Select job site</option>
                 {jobSites?.map((s) => (
                   <option key={s.id} value={s.id}>{s.name}</option>
@@ -194,18 +253,40 @@ export default function SafetyBulletinsPage() {
               </Select>
             </FormField>
           )}
+          {audience === SafetyAudience.SPECIFIC_WORKERS && (
+            <FormField label="Workers">
+              <div className="max-h-48 space-y-2 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3">
+                {employees?.map((emp) => (
+                  <label key={emp.id} className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={employeeIds.includes(emp.id)}
+                      onChange={() => toggleEmployee(emp.id)}
+                      className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                    />
+                    {emp.firstName} {emp.lastName}
+                  </label>
+                ))}
+                {!employees?.length ? (
+                  <p className="text-sm text-slate-500">No active employees found.</p>
+                ) : null}
+              </div>
+            </FormField>
+          )}
           <ModalFooter>
-            <Button variant="secondary" icon="cancel" onClick={() => setModalOpen(false)}>Cancel</Button>
+            <Button variant="secondary" icon="cancel" type="button" onClick={() => setModalOpen(false)}>
+              Cancel
+            </Button>
             <Button
+              type="submit"
               icon="save"
-              onClick={() => createMutation.mutate()}
               loading={createMutation.isPending}
-              disabled={!title || !message}
+              disabled={!canCreate}
             >
               Create
             </Button>
           </ModalFooter>
-        </div>
+        </form>
       </Modal>
     </DashboardLayout>
   );

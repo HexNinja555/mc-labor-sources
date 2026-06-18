@@ -4,9 +4,9 @@ import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createJobOrderSchema, JobOrderStatus, type CreateJobOrderInput } from '@mc-labor/shared';
+import { createJobOrderSchema, updateJobOrderSchema, JobOrderStatus, type CreateJobOrderInput } from '@mc-labor/shared';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { PageTitle } from '@/components/layout/PageTitle';
+import { BrandPageTitle } from '@/components/brand';
 import { BRAND_HERO_IMAGES } from '@/lib/navigation';
 import {
   PortalFilterPanel,
@@ -81,7 +81,8 @@ export default function JobOrdersPage() {
   }, [data]);
 
   const form = useForm<CreateJobOrderInput>({
-    resolver: zodResolver(createJobOrderSchema),
+    resolver: async (data, context, options) =>
+      zodResolver(editing ? updateJobOrderSchema : createJobOrderSchema)(data, context, options),
     defaultValues: {
       orderNumber: '',
       customerId: '',
@@ -169,7 +170,7 @@ export default function JobOrdersPage() {
 
   return (
     <DashboardLayout heroTitle="Job Orders" heroImage={BRAND_HERO_IMAGES.default}>
-      <PageTitle
+      <BrandPageTitle
         title="Job Orders"
         description="Create and manage job orders for workers"
         action={<Button icon="plus" onClick={openCreate}>Add Job Order</Button>}

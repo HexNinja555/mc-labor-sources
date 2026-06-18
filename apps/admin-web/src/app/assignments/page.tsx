@@ -4,9 +4,15 @@ import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createAssignmentSchema, AssignmentStatus, type CreateAssignmentInput } from '@mc-labor/shared';
+import {
+  createAssignmentSchema,
+  updateAssignmentSchema,
+  endAssignmentSchema,
+  AssignmentStatus,
+  type CreateAssignmentInput,
+} from '@mc-labor/shared';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { PageTitle } from '@/components/layout/PageTitle';
+import { BrandPageTitle } from '@/components/brand';
 import { BRAND_HERO_IMAGES } from '@/lib/navigation';
 import {
   PortalFilterPanel,
@@ -80,7 +86,8 @@ export default function AssignmentsPage() {
   }, [data]);
 
   const form = useForm<CreateAssignmentInput>({
-    resolver: zodResolver(createAssignmentSchema),
+    resolver: async (data, context, options) =>
+      zodResolver(editing ? updateAssignmentSchema : createAssignmentSchema)(data, context, options),
     defaultValues: {
       employeeId: '',
       customerId: '',
@@ -140,8 +147,10 @@ export default function AssignmentsPage() {
   });
 
   const endMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: 'COMPLETED' | 'CANCELLED' }) =>
-      api.endAssignment(id, status),
+    mutationFn: ({ id, status }: { id: string; status: 'COMPLETED' | 'CANCELLED' }) => {
+      endAssignmentSchema.parse({ status });
+      return api.endAssignment(id, status);
+    },
     onSuccess: () => {
       invalidate();
       setEndTarget(null);
@@ -193,7 +202,7 @@ export default function AssignmentsPage() {
 
   return (
     <DashboardLayout heroTitle="Assignments" heroImage={BRAND_HERO_IMAGES.default}>
-      <PageTitle
+      <BrandPageTitle
         title="Assignments"
         description="Assign employees to job sites"
         action={<Button icon="plus" onClick={() => openCreate()}>New Assignment</Button>}

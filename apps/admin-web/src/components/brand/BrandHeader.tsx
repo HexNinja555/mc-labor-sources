@@ -242,8 +242,8 @@ export function BrandHeader({ navItems, portalHome, user, showNav = true }: Bran
     <header id="header" className="border-b border-gray-200 bg-white py-[10px]">
       <div className="brand-container">
         <div className="flex items-start justify-between gap-4">
-          <div className="pt-[10px]">
-            <BrandLogo href={portalHome} priority className="max-w-[300px] shrink-0 lg:max-w-[360px]" />
+          <div className="shrink-0 pt-[10px]">
+            <BrandLogo href={portalHome} priority />
           </div>
 
           <div className="flex items-center gap-4 pt-[15px] xl:gap-6">

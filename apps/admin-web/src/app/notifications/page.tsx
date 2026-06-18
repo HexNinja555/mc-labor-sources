@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { NotificationType } from '@mc-labor/shared';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { PageTitle } from '@/components/layout/PageTitle';
+import { BrandPageTitle } from '@/components/brand';
 import { BRAND_HERO_IMAGES } from '@/lib/navigation';
 import {
   PortalFilterPanel,
@@ -76,7 +76,7 @@ export default function NotificationsPage() {
 
   return (
     <DashboardLayout heroTitle="Notifications" heroImage={BRAND_HERO_IMAGES.inner}>
-      <PageTitle
+      <BrandPageTitle
         title="Notifications"
         description="View system notifications"
         action={<Button icon="bell" onClick={() => setModalOpen(true)}>Create Notification</Button>}

@@ -172,6 +172,8 @@ export interface SafetyBulletin {
   createdById: string;
   createdAt?: string;
   jobSite?: { id: string; name: string };
+  recipientEmployeeIds?: string[];
+  recipientEmployees?: { id: string; firstName: string; lastName: string }[];
 }
 
 export interface Notification {
@@ -210,20 +212,6 @@ export interface CompanySettings {
   dashboardSubdomain: string | null;
 }
 
-export interface CreateCustomerUserInput {
-  name: string;
-  email: string;
-  password: string;
-  phone?: string;
-}
-
-export interface CreateWorkerUserInput {
-  name: string;
-  email: string;
-  password: string;
-  phone?: string;
-}
-
 export interface AuthUser {
   id: string;
   name: string;
@@ -231,4 +219,43 @@ export interface AuthUser {
   role: string;
   customerId: string | null;
   employeeId: string | null;
+}
+
+export interface SupervisorUser extends AuthUser {
+  assignedJobSiteCount?: number;
+}
+
+export interface SupervisorDashboard {
+  stats: {
+    assignedJobSites: number;
+    workersAssigned: number;
+    clockedInToday: number;
+    pendingTimesheets: number;
+    signedTimesheets: number;
+  };
+  todayAttendance: AttendanceLog[];
+  pendingTimesheets: Timesheet[];
+  recentSignedTimesheets: Timesheet[];
+}
+
+export interface SupervisorHoursReportRow {
+  employeeId: string;
+  firstName: string;
+  lastName: string;
+  jobSiteId: string;
+  jobSiteName: string;
+  totalHours: number;
+  timesheetCount: number;
+}
+
+export interface AdminHoursReportRow {
+  employeeId: string;
+  firstName: string;
+  lastName: string;
+  customerId: string;
+  companyName: string;
+  jobSiteId: string;
+  jobSiteName: string;
+  totalHours: number;
+  timesheetCount: number;
 }

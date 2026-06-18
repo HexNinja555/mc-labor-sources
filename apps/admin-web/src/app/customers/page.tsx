@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   createCustomerSchema,
+  updateCustomerSchema,
   createCustomerUserSchema,
   bulkCustomerRowSchema,
   CustomerStatus,
@@ -14,7 +15,7 @@ import {
   type BulkCustomerRow,
 } from '@mc-labor/shared';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { PageTitle } from '@/components/layout/PageTitle';
+import { BrandPageTitle } from '@/components/brand';
 import { BRAND_HERO_IMAGES } from '@/lib/navigation';
 import {
   PortalFilterPanel,
@@ -85,7 +86,8 @@ export default function CustomersPage() {
   }, [data]);
 
   const form = useForm<CreateCustomerInput>({
-    resolver: zodResolver(createCustomerSchema),
+    resolver: async (data, context, options) =>
+      zodResolver(editing ? updateCustomerSchema : createCustomerSchema)(data, context, options),
     defaultValues: { companyName: '', status: CustomerStatus.ACTIVE },
   });
 
@@ -143,7 +145,7 @@ export default function CustomersPage() {
 
   return (
     <DashboardLayout heroTitle="Customers" heroImage={BRAND_HERO_IMAGES.default}>
-      <PageTitle
+      <BrandPageTitle
         title="Customers"
         description="Manage customer companies and portal access"
         action={

@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { IconBuilding } from '@/components/dashboard/DashboardIcons';
+import { IconBuilding, IconMapPin } from '@/components/ui/icons';
 import {
   formatJobSiteAddress,
   formatJobSiteLocation,
@@ -33,15 +33,6 @@ interface BrandJobSiteCardProps {
   foremanEmail?: string | null;
   assignments?: JobSiteAssignment[];
   onEdit?: () => void;
-}
-
-function IconMapPin({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-      <path d="M12 21s7-4.35 7-10a7 7 0 10-14 0c0 5.65 7 10 7 10z" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="12" cy="11" r="2.5" />
-    </svg>
-  );
 }
 
 function IconUser({ className }: { className?: string }) {

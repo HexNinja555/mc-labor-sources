@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createJobSiteSchema, JobSiteStatus, type CreateJobSiteInput } from '@mc-labor/shared';
+import { createJobSiteSchema, updateJobSiteSchema, JobSiteStatus, type CreateJobSiteInput } from '@mc-labor/shared';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { BrandJobSiteCard, BrandPageTitle } from '@/components/brand';
 import { JobSiteListingFilters } from '@/components/job-sites/JobSiteListingFilters';
@@ -30,11 +30,17 @@ export default function JobSitesPage() {
   const [filters, setFilters] = useState(defaultFilters);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<JobSite | null>(null);
+  const [supervisorIds, setSupervisorIds] = useState<string[]>([]);
   const queryClient = useQueryClient();
 
   const { data: customers } = useQuery({
     queryKey: ['customers'],
     queryFn: () => api.getCustomers(),
+  });
+
+  const { data: supervisors } = useQuery({
+    queryKey: ['supervisors'],
+    queryFn: () => api.getSupervisors(),
   });
 
   const { data, isLoading } = useQuery({
@@ -49,7 +55,8 @@ export default function JobSitesPage() {
   );
 
   const form = useForm<CreateJobSiteInput>({
-    resolver: zodResolver(createJobSiteSchema),
+    resolver: async (data, context, options) =>
+      zodResolver(editing ? updateJobSiteSchema : createJobSiteSchema)(data, context, options),
     defaultValues: { customerId: '', name: '', address: '', status: JobSiteStatus.ACTIVE },
   });
 
@@ -59,8 +66,13 @@ export default function JobSitesPage() {
         ...values,
         foremanEmail: values.foremanEmail || undefined,
       };
-      if (editing) return api.updateJobSite(editing.id, payload);
-      return api.createJobSite(payload);
+      const site = editing
+        ? await api.updateJobSite(editing.id, payload)
+        : await api.createJobSite(payload);
+      if (editing) {
+        await api.setJobSiteSupervisors(site.id, supervisorIds);
+      }
+      return site;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['job-sites'] });
@@ -71,12 +83,15 @@ export default function JobSitesPage() {
 
   function openCreate() {
     setEditing(null);
+    setSupervisorIds([]);
     form.reset({ customerId: '', name: '', address: '', status: JobSiteStatus.ACTIVE });
     setModalOpen(true);
   }
 
-  function openEdit(site: JobSite) {
+  async function openEdit(site: JobSite) {
     setEditing(site);
+    const ids = await api.getJobSiteSupervisorIds(site.id);
+    setSupervisorIds(ids);
     form.reset({
       customerId: site.customerId,
       name: site.name,
@@ -191,6 +206,29 @@ export default function JobSitesPage() {
               <option value="INACTIVE">Inactive</option>
             </Select>
           </FormField>
+          {editing && supervisors && supervisors.length > 0 ? (
+            <FormField label="Assigned supervisors">
+              <div className="max-h-40 space-y-2 overflow-y-auto rounded-xl border border-slate-200/80 p-3">
+                {supervisors.map((supervisor) => (
+                  <label key={supervisor.id} className="flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={supervisorIds.includes(supervisor.id)}
+                      onChange={() =>
+                        setSupervisorIds((prev) =>
+                          prev.includes(supervisor.id)
+                            ? prev.filter((id) => id !== supervisor.id)
+                            : [...prev, supervisor.id],
+                        )
+                      }
+                      className="h-4 w-4 rounded border-slate-300 text-primary"
+                    />
+                    {supervisor.name}
+                  </label>
+                ))}
+              </div>
+            </FormField>
+          ) : null}
           <ModalFooter>
             <Button type="button" variant="secondary" icon="cancel" onClick={() => setModalOpen(false)}>
               Cancel

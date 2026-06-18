@@ -81,6 +81,50 @@ Password for all: **`Password123!`**
 | Supervisor | supervisor@mclabor.demo |
 | Worker | worker@mclabor.demo |
 
+Supervisors can sign timesheets from the **web portal** (`/supervisor/timesheets`) or the **mobile app** (Timesheets tab after login).
+
+## Milestones 1–3 — Feature summary
+
+| Milestone | Delivered |
+|-----------|-----------|
+| **M1** | Admin CRUD, customer portal, auth, RLS, user provisioning |
+| **M2** | Worker mobile (clock, assignments, job orders, timesheets), admin ops modules, in-app notifications |
+| **M3** | Supervisor web/mobile signing, customer signed views, reports + CSV, supervisor management |
+
+Full acceptance checklist: **[docs/M1-M3-ACCEPTANCE.md](docs/M1-M3-ACCEPTANCE.md)**
+
+Quick M3 reference:
+
+| Feature | Location |
+|---------|----------|
+| Supervisor dashboard, job sites, attendance, timesheets + sign | Web `/supervisor/*` |
+| Admin supervisor provisioning + site assignment | Web `/supervisors`, job site edit modal |
+| Customer signed timesheet detail + signature image | Web `/customer/timesheets` |
+| Hours / attendance reports + CSV export | Admin `/reports`; supervisor `/supervisor/reports`; CSV on attendance & timesheets |
+| Mobile supervisor signing | Expo app — login as `supervisor@mclabor.demo` |
+| Safety bulletins (all / site / specific workers) | Admin `/safety-bulletins` |
+
+### Setup verification
+
+```bash
+pnpm setup:check    # validate .env
+pnpm verify         # typecheck + build
+pnpm smoke:rpc        # RPC health (requires seed:auth)
+```
+
+### Remote seed (no Docker)
+
+If you use Supabase cloud without local Docker, apply incremental demo data after migrations:
+
+```bash
+# Supabase SQL Editor, or:
+psql $DATABASE_URL -f supabase/seed-incremental.sql
+```
+
+### Manual test checklist
+
+See **[docs/M1-M3-ACCEPTANCE.md](docs/M1-M3-ACCEPTANCE.md)** for the full M1–M3 acceptance checklist.
+
 ## Architecture
 
 ```
@@ -116,6 +160,8 @@ mc-labor-sources/
 | `pnpm build` | Production build |
 | `pnpm setup:check` | Validate `.env` |
 | `pnpm seed:auth` | Link demo users in Supabase Auth |
+| `pnpm verify` | Typecheck + production build |
+| `pnpm smoke:rpc` | Smoke-test admin/supervisor RPCs |
 | `supabase db push` | Apply migrations to linked project |
 
 ## License

@@ -7,10 +7,13 @@
     "mob:clear": "pnpm --filter @mc-labor/mobile exec expo start --clear",
     "mob:build:web": "pnpm --filter @mc-labor/mobile build:web",
     "build": "pnpm --filter @mc-labor/shared build && pnpm --filter @mc-labor/admin-web build",
+    "typecheck": "pnpm --filter @mc-labor/shared build && pnpm --filter @mc-labor/admin-web typecheck",
+    "verify": "pnpm typecheck && pnpm build",
+    "smoke:rpc": "node scripts/smoke-rpc.mjs",
     "clean": "node -e \"const fs=require('fs');['apps/admin-web/.next','packages/shared/dist'].forEach(p=>{try{fs.rmSync(p,{recursive:true,force:true});console.log('removed',p)}catch(e){}})\"",
     "setup:check": "node scripts/check-supabase-env.mjs",
     "setup:db": "node scripts/check-supabase-env.mjs && node scripts/seed-auth-users.mjs",
-    "seed:auth": "node scripts/seed-auth-users.mjs"
+    "seed:auth": "pnpm --filter @mc-labor/shared build && node scripts/seed-auth-users.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1"

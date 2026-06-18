@@ -30,15 +30,6 @@ export function Screen({ children, scroll = false, padded = true, style, content
   );
 }
 
-export function ScreenHeader({ title, subtitle }: { title: string; subtitle?: string }) {
-  return (
-    <View style={styles.header}>
-      <Text style={styles.headerTitle}>{title}</Text>
-      {subtitle ? <Text style={styles.headerSubtitle}>{subtitle}</Text> : null}
-    </View>
-  );
-}
-
 export function LoadingView({ label }: { label?: string }) {
   return (
     <Screen padded={false}>
@@ -76,6 +67,15 @@ export function InfoBanner({ message }: { message: string }) {
   );
 }
 
+export function SuccessBanner({ message }: { message: string }) {
+  if (!message) return null;
+  return (
+    <View style={styles.successBanner}>
+      <Text style={styles.successText}>{message}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   padded: {
@@ -85,22 +85,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingBottom: 32,
-  },
-  header: {
-    marginBottom: 20,
-  },
-  headerTitle: {
-    fontFamily: fonts.bold,
-    fontSize: 24,
-    color: theme.colors.text,
-    letterSpacing: -0.5,
-  },
-  headerSubtitle: {
-    fontFamily: fonts.regular,
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    marginTop: 4,
-    lineHeight: 20,
   },
   center: {
     flex: 1,
@@ -156,6 +140,20 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 14,
     color: theme.colors.info,
+    lineHeight: 20,
+  },
+  successBanner: {
+    backgroundColor: theme.colors.successBg,
+    borderWidth: 1,
+    borderColor: theme.colors.successBorder,
+    borderRadius: theme.radius.md,
+    padding: 14,
+    marginBottom: 16,
+  },
+  successText: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    color: theme.colors.success,
     lineHeight: 20,
   },
 });

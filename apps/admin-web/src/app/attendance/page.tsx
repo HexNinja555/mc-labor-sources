@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { PageTitle } from '@/components/layout/PageTitle';
+import { BrandPageTitle } from '@/components/brand';
 import { BRAND_HERO_IMAGES } from '@/lib/navigation';
 import {
   PortalFilterPanel,
@@ -16,6 +16,7 @@ import {
   GpsLocationCell,
 } from '@/components/portal';
 import { IconBuilding, IconClock, IconUsers } from '@/components/dashboard';
+import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { FormField } from '@/components/ui/FormField';
@@ -25,6 +26,8 @@ import { LoadingState } from '@/components/ui/LoadingState';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { formatEmployeeName, getAttendanceStats } from '@/lib/portal-stats';
 import { api } from '@/lib/api-client';
+import { attendanceFilterSchema } from '@mc-labor/shared';
+import { downloadCsv } from '@/lib/export-csv';
 
 export default function AttendancePage() {
   const [date, setDate] = useState('');
@@ -50,20 +53,39 @@ export default function AttendancePage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['attendance', date, employeeId, customerId, jobSiteId],
-    queryFn: () =>
-      api.getAttendance({
+    queryFn: () => {
+      const filters = attendanceFilterSchema.parse({
         ...(date && { date }),
         ...(employeeId && { employeeId }),
         ...(customerId && { customerId }),
         ...(jobSiteId && { jobSiteId }),
-      }),
+      });
+      return api.getAttendance(filters);
+    },
   });
 
   const stats = useMemo(() => getAttendanceStats(data ?? []), [data]);
 
+  function exportAttendance() {
+    if (!data?.length) return;
+    downloadCsv(
+      `attendance-${date || 'all'}.csv`,
+      ['Employee', 'Customer', 'Job Site', 'Clock In', 'Clock Out', 'Hours', 'Status'],
+      data.map((log) => [
+        formatEmployeeName(log.employee),
+        log.customer?.companyName ?? '',
+        log.jobSite?.name ?? '',
+        log.clockInTime ? new Date(log.clockInTime).toLocaleString() : '',
+        log.clockOutTime ? new Date(log.clockOutTime).toLocaleString() : '',
+        String(log.totalHours ?? ''),
+        log.status,
+      ]),
+    );
+  }
+
   return (
     <DashboardLayout heroTitle="Attendance" heroImage={BRAND_HERO_IMAGES.attendance}>
-      <PageTitle title="Attendance" description="View clock-in and clock-out records" />
+      <BrandPageTitle title="Attendance" description="View clock-in and clock-out records" />
 
       {data && data.length > 0 && (
         <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -90,7 +112,7 @@ export default function AttendancePage() {
       )}
 
       <PortalFilterPanel>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <FormField label="Date">
             <Input
               type="date"
@@ -144,6 +166,11 @@ export default function AttendancePage() {
               ))}
             </Select>
           </FormField>
+          <div className="flex items-end">
+            <Button variant="secondary" icon="download" disabled={!data?.length} onClick={exportAttendance}>
+              Export CSV
+            </Button>
+          </div>
         </div>
       </PortalFilterPanel>
 

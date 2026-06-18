@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { clockInSchema, clockOutSchema } from '@mc-labor/shared';
 
 export class MobileDataError extends Error {
   constructor(message: string) {
@@ -96,6 +97,43 @@ function mapTimesheet(row: Record<string, unknown>) {
   };
 }
 
+function mapSupervisorTimesheet(row: Record<string, unknown>) {
+  const jobSite = row.job_site as Record<string, unknown> | null;
+  const employee = row.employee as Record<string, unknown> | null;
+  const sigRows = row.signature as Record<string, unknown>[] | Record<string, unknown> | null;
+  const signature = Array.isArray(sigRows) ? sigRows[0] : sigRows;
+  return {
+    id: row.id as string,
+    totalHours: row.total_hours as string | number,
+    status: row.status as string,
+    workDate: (row.work_date as string) ?? null,
+    weekStartDate: (row.week_start_date as string) ?? null,
+    weekEndDate: (row.week_end_date as string) ?? null,
+    employee: employee
+      ? {
+          firstName: employee.first_name as string,
+          lastName: employee.last_name as string,
+        }
+      : undefined,
+    jobSite: jobSite ? { name: jobSite.name as string } : undefined,
+    hasSignature: !!signature,
+  };
+}
+
+async function uploadSignatureDataUrl(dataUrl: string, timesheetId: string): Promise<string> {
+  const path = `timesheets/timesheet-${timesheetId}-${Date.now()}.png`;
+  const response = await fetch(dataUrl);
+  const blob = await response.blob();
+  const arrayBuffer = await blob.arrayBuffer();
+  const { error } = await supabase.storage.from('signatures').upload(path, arrayBuffer, {
+    contentType: 'image/png',
+    upsert: false,
+  });
+  throwIf(error);
+  const { data } = supabase.storage.from('signatures').getPublicUrl(path);
+  return data.publicUrl;
+}
+
 function mapNotification(row: Record<string, unknown>) {
   return {
     id: row.id as string,
@@ -166,6 +204,14 @@ export const mobileApi = {
   }) => {
     const me = await getMe();
     if (!me.employeeId) throw new MobileDataError('Worker profile required');
+    clockInSchema.parse({
+      employeeId: me.employeeId,
+      customerId: payload.customerId,
+      jobSiteId: payload.jobSiteId,
+      assignmentId: payload.assignmentId,
+      clockInLatitude: payload.clockInLatitude,
+      clockInLongitude: payload.clockInLongitude,
+    });
     const { data, error } = await supabase
       .from('attendance_logs')
       .insert({
@@ -190,6 +236,11 @@ export const mobileApi = {
     clockOutLongitude?: number;
     clockOutLocationLabel?: string | null;
   }) => {
+    clockOutSchema.parse({
+      attendanceLogId: payload.attendanceId,
+      clockOutLatitude: payload.clockOutLatitude,
+      clockOutLongitude: payload.clockOutLongitude,
+    });
     const { data: existing, error: fetchError } = await supabase
       .from('attendance_logs')
       .select('clock_in_time')
@@ -310,6 +361,104 @@ export const mobileApi = {
       })),
     };
   },
+  getSupervisorJobSites: async () => {
+    const { data, error } = await supabase
+      .from('job_sites')
+      .select('id, name')
+      .order('name');
+    throwIf(error);
+    return (data ?? []).map((row) => ({
+      id: row.id as string,
+      name: row.name as string,
+    }));
+  },
+  getSupervisorTimesheets: async (params?: { pendingOnly?: boolean; jobSiteId?: string }) => {
+    let q = supabase
+      .from('timesheets')
+      .select(
+        '*, employee:employees(id, first_name, last_name), job_site:job_sites(id, name), signature:timesheet_signatures(*)',
+      )
+      .order('created_at', { ascending: false });
+    if (params?.jobSiteId) {
+      q = q.eq('job_site_id', params.jobSiteId);
+    }
+    const { data, error } = await q;
+    throwIf(error);
+    let rows = data ?? [];
+    if (params?.pendingOnly) {
+      rows = rows.filter((row) => {
+        const status = row.status as string;
+        const sig = row.signature as Record<string, unknown>[] | Record<string, unknown> | null;
+        const hasSig = Array.isArray(sig) ? sig.length > 0 : !!sig;
+        return (status === 'DRAFT' || status === 'SUBMITTED') && !hasSig;
+      });
+    }
+    return rows.map((row) => mapSupervisorTimesheet(row as Record<string, unknown>));
+  },
+  getSupervisorTimesheet: async (id: string) => {
+    const { data, error } = await supabase
+      .from('timesheets')
+      .select(
+        '*, employee:employees(id, first_name, last_name), job_site:job_sites(id, name), entries:timesheet_entries(*), signature:timesheet_signatures(*)',
+      )
+      .eq('id', id)
+      .single();
+    throwIf(error);
+    const jobSite = data.job_site as Record<string, unknown> | null;
+    const employee = data.employee as Record<string, unknown> | null;
+    const entries = (data.entries as Record<string, unknown>[] | null) ?? [];
+    const sigRows = data.signature as Record<string, unknown>[] | Record<string, unknown> | null;
+    const signature = Array.isArray(sigRows) ? sigRows[0] : sigRows;
+    return {
+      id: data.id as string,
+      totalHours: data.total_hours as string | number,
+      status: data.status as string,
+      workDate: (data.work_date as string) ?? null,
+      weekStartDate: (data.week_start_date as string) ?? null,
+      weekEndDate: (data.week_end_date as string) ?? null,
+      notes: (data.notes as string) ?? null,
+      employee: employee
+        ? {
+            firstName: employee.first_name as string,
+            lastName: employee.last_name as string,
+          }
+        : undefined,
+      jobSite: jobSite ? { name: jobSite.name as string } : undefined,
+      signature: signature
+        ? {
+            foremanName: signature.foreman_name as string,
+            foremanEmail: (signature.foreman_email as string) ?? null,
+            signatureImageUrl: (signature.signature_image_url as string) ?? null,
+          }
+        : undefined,
+      entries: entries.map((e) => ({
+        id: e.id as string,
+        workDate: e.work_date as string,
+        startTime: e.start_time as string,
+        endTime: e.end_time as string,
+        hours: e.hours as string | number,
+        breakMinutes: e.break_minutes as number,
+        notes: (e.notes as string) ?? null,
+      })),
+    };
+  },
+  signSupervisorTimesheet: async (
+    id: string,
+    payload: { foremanName: string; foremanEmail?: string; signatureDataUrl: string },
+  ) => {
+    let imageUrl = payload.signatureDataUrl;
+    if (imageUrl.startsWith('data:')) {
+      imageUrl = await uploadSignatureDataUrl(imageUrl, id);
+    }
+    const { error } = await supabase.rpc('sign_timesheet', {
+      p_timesheet_id: id,
+      p_foreman_name: payload.foremanName,
+      p_foreman_email: payload.foremanEmail ?? '',
+      p_signature_image_url: imageUrl,
+    });
+    throwIf(error);
+    return mobileApi.getSupervisorTimesheet(id);
+  },
   getNotifications: async () => {
     const me = await getMe();
     let q = supabase.from('notifications').select('*').order('created_at', { ascending: false });
@@ -335,4 +484,4 @@ export const mobileApi = {
   },
 };
 
-export { signIn, signOut, getAccessToken } from './supabase';
+export { signIn, signOut } from './supabase';

@@ -17,10 +17,19 @@ import type {
   CustomerDashboard,
   CustomerJobSite,
   CompanySettings,
+  SupervisorUser,
+  SupervisorDashboard,
+  SupervisorHoursReportRow,
+  AdminHoursReportRow,
+} from '../domain-types';
+import type {
+  BulkCustomerRow,
+  BulkEmployeeRow,
+  BulkImportResult,
   CreateCustomerUserInput,
   CreateWorkerUserInput,
-} from '../domain-types';
-import type { BulkCustomerRow, BulkEmployeeRow, BulkImportResult } from '@mc-labor/shared';
+} from '@mc-labor/shared';
+import { createUserSchema } from '@mc-labor/shared';
 import { uploadDataUrl, uploadFile } from './storage';
 
 export class DataError extends Error {
@@ -36,6 +45,25 @@ function sb() {
 
 function throwIf(error: { message: string } | null) {
   if (error) throw new DataError(error.message);
+}
+
+async function createAppUser(body: Record<string, unknown>): Promise<unknown> {
+  const validated = createUserSchema.parse(body);
+  const { data: session } = await sb().auth.getSession();
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-app-user`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.session?.access_token}`,
+      },
+      body: JSON.stringify(validated),
+    },
+  );
+  const json = await res.json();
+  if (!res.ok) throw new DataError(json.error || 'Failed to create user');
+  return json;
 }
 
 // --- mappers: snake_case DB -> camelCase UI ---
@@ -270,6 +298,18 @@ function mapDocument(row: Record<string, unknown>): Document {
 
 function mapSafetyBulletin(row: Record<string, unknown>): SafetyBulletin {
   const jobSite = row.job_site as Record<string, unknown> | null;
+  const recipients = row.recipients as Record<string, unknown>[] | null;
+  const recipientEmployees = (recipients ?? [])
+    .map((r) => {
+      const emp = r.employee as Record<string, unknown> | null;
+      if (!emp) return null;
+      return {
+        id: emp.id as string,
+        firstName: emp.first_name as string,
+        lastName: emp.last_name as string,
+      };
+    })
+    .filter((e): e is { id: string; firstName: string; lastName: string } => e !== null);
   return {
     id: row.id as string,
     title: row.title as string,
@@ -281,6 +321,8 @@ function mapSafetyBulletin(row: Record<string, unknown>): SafetyBulletin {
     createdById: row.created_by_id as string,
     createdAt: (row.created_at as string) ?? undefined,
     jobSite: jobSite ? { id: jobSite.id as string, name: jobSite.name as string } : undefined,
+    recipientEmployeeIds: recipientEmployees.map((e) => e.id),
+    recipientEmployees: recipientEmployees.length > 0 ? recipientEmployees : undefined,
   };
 }
 
@@ -315,6 +357,31 @@ async function createNotificationForEmployee(
     message,
     type,
   });
+}
+
+async function createNotificationsForCustomerUsers(
+  customerId: string,
+  title: string,
+  message: string,
+  type: string,
+) {
+  const { data: users, error } = await sb()
+    .from('users')
+    .select('id')
+    .eq('customer_id', customerId)
+    .eq('role', 'CUSTOMER')
+    .eq('status', 'ACTIVE');
+  if (error) throw new DataError(error.message);
+  if (!users?.length) return;
+  await sb().from('notifications').insert(
+    users.map((u) => ({
+      user_id: u.id as string,
+      employee_id: null,
+      title,
+      message,
+      type,
+    })),
+  );
 }
 
 function mapUser(row: Record<string, unknown>): AuthUser {
@@ -585,56 +652,28 @@ export const data = {
     customerId: string,
     input: CreateCustomerUserInput,
   ): Promise<unknown> {
-    const { data: session } = await sb().auth.getSession();
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-app-user`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.session?.access_token}`,
-        },
-        body: JSON.stringify({
-          name: input.name,
-          email: input.email,
-          password: input.password,
-          phone: input.phone,
-          role: 'CUSTOMER',
-          customerId,
-        }),
-      },
-    );
-    const json = await res.json();
-    if (!res.ok) throw new DataError(json.error || 'Failed to create user');
-    return json;
+    return createAppUser({
+      name: input.name,
+      email: input.email,
+      password: input.password,
+      phone: input.phone,
+      role: 'CUSTOMER',
+      customerId,
+    });
   },
 
   async createWorkerUser(
     employeeId: string,
     input: CreateWorkerUserInput,
   ): Promise<unknown> {
-    const { data: session } = await sb().auth.getSession();
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-app-user`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.session?.access_token}`,
-        },
-        body: JSON.stringify({
-          name: input.name,
-          email: input.email,
-          password: input.password,
-          phone: input.phone,
-          role: 'WORKER',
-          employeeId,
-        }),
-      },
-    );
-    const json = await res.json();
-    if (!res.ok) throw new DataError(json.error || 'Failed to create worker user');
-    return json;
+    return createAppUser({
+      name: input.name,
+      email: input.email,
+      password: input.password,
+      phone: input.phone,
+      role: 'WORKER',
+      employeeId,
+    });
   },
 
   async getJobSites(params?: Record<string, string>): Promise<JobSite[]> {
@@ -1098,7 +1137,6 @@ export const data = {
         'JOB_ORDER',
       );
     }
-    console.log('[EMAIL PLACEHOLDER] Job order sent:', order.orderNumber);
     return mapJobOrder(row as Record<string, unknown>);
   },
 
@@ -1200,34 +1238,32 @@ export const data = {
     id: string,
     payload: { foremanName: string; foremanEmail?: string; signatureDataUrl: string },
   ): Promise<Timesheet> {
-    const imageUrl = await uploadDataUrl(
-      'signatures',
-      payload.signatureDataUrl,
-      `timesheet-${id}.png`,
-      'timesheets',
-    );
-    const { error: sigError } = await sb().from('timesheet_signatures').upsert(
-      {
-        timesheet_id: id,
-        foreman_name: payload.foremanName,
-        foreman_email: payload.foremanEmail || null,
-        signature_image_url: imageUrl,
-        signed_at: new Date().toISOString(),
-      },
-      { onConflict: 'timesheet_id' },
-    );
-    throwIf(sigError);
-    const { data: row, error } = await sb()
-      .from('timesheets')
-      .update({ status: 'SIGNED', updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select(
-        '*, employee:employees(id, first_name, last_name), customer:customers(id, company_name), job_site:job_sites(id, name), signature:timesheet_signatures(*)',
-      )
-      .single();
+    const timesheet = await data.getTimesheet(id);
+    let imageUrl = payload.signatureDataUrl;
+    if (imageUrl.startsWith('data:')) {
+      imageUrl = await uploadDataUrl(
+        'signatures',
+        payload.signatureDataUrl,
+        `timesheet-${id}.png`,
+        'timesheets',
+      );
+    }
+    const { error } = await sb().rpc('sign_timesheet', {
+      p_timesheet_id: id,
+      p_foreman_name: payload.foremanName,
+      p_foreman_email: payload.foremanEmail ?? '',
+      p_signature_image_url: imageUrl,
+    });
     throwIf(error);
-    console.log('[EMAIL PLACEHOLDER] Timesheet signed:', id);
-    return mapTimesheet(row as Record<string, unknown>);
+    if (timesheet.customerId) {
+      await createNotificationsForCustomerUsers(
+        timesheet.customerId,
+        'Timesheet Signed',
+        `A timesheet has been signed for ${timesheet.jobSite?.name ?? 'your job site'}.`,
+        'SYSTEM',
+      );
+    }
+    return data.getTimesheet(id);
   },
 
   async markTimesheetSent(
@@ -1259,7 +1295,16 @@ export const data = {
       )
       .single();
     throwIf(error);
-    return mapTimesheet(row as Record<string, unknown>);
+    const mapped = mapTimesheet(row as Record<string, unknown>);
+    if (flags.sentToCustomerOffice && mapped.customerId) {
+      await createNotificationsForCustomerUsers(
+        mapped.customerId,
+        'Timesheet Sent to Office',
+        `Signed timesheet for ${mapped.jobSite?.name ?? 'job site'} was marked sent to your office.`,
+        'SYSTEM',
+      );
+    }
+    return mapped;
   },
 
   async rollupWeeklyTimesheet(payload: {
@@ -1336,7 +1381,9 @@ export const data = {
   async getSafetyBulletins(): Promise<SafetyBulletin[]> {
     const { data: rows, error } = await sb()
       .from('safety_bulletins')
-      .select('*, job_site:job_sites(id, name)')
+      .select(
+        '*, job_site:job_sites(id, name), recipients:safety_bulletin_recipients(employee_id, employee:employees(id, first_name, last_name))',
+      )
       .order('created_at', { ascending: false });
     throwIf(error);
     return (rows ?? []).map((r) => mapSafetyBulletin(r as Record<string, unknown>));
@@ -1348,6 +1395,7 @@ export const data = {
     audience: string;
     jobSiteId?: string;
     fileUrl?: string;
+    employeeIds?: string[];
   }): Promise<SafetyBulletin> {
     const me = await data.getMe();
     const { data: row, error } = await sb()
@@ -1360,9 +1408,25 @@ export const data = {
         file_url: payload.fileUrl ?? null,
         created_by_id: me.id,
       })
-      .select('*, job_site:job_sites(id, name)')
+      .select(
+        '*, job_site:job_sites(id, name), recipients:safety_bulletin_recipients(employee_id, employee:employees(id, first_name, last_name))',
+      )
       .single();
     throwIf(error);
+    if (payload.audience === 'SPECIFIC_WORKERS' && payload.employeeIds?.length) {
+      const { error: recipientError } = await sb().from('safety_bulletin_recipients').insert(
+        payload.employeeIds.map((employeeId) => ({
+          bulletin_id: row.id as string,
+          employee_id: employeeId,
+        })),
+      );
+      throwIf(recipientError);
+      return data.getSafetyBulletins().then((list) => {
+        const found = list.find((b) => b.id === row.id);
+        if (!found) throw new DataError('Failed to load created bulletin');
+        return found;
+      });
+    }
     return mapSafetyBulletin(row as Record<string, unknown>);
   },
 
@@ -1393,6 +1457,13 @@ export const data = {
         .eq('job_site_id', bulletin.jobSiteId)
         .in('status', ['ACTIVE', 'ACCEPTED']);
       employeeIds = [...new Set((assignments ?? []).map((a) => a.employee_id as string))];
+    } else if (bulletin.audience === 'SPECIFIC_WORKERS') {
+      const { data: recipients, error: recipientError } = await sb()
+        .from('safety_bulletin_recipients')
+        .select('employee_id')
+        .eq('bulletin_id', id);
+      throwIf(recipientError);
+      employeeIds = (recipients ?? []).map((r) => r.employee_id as string);
     }
 
     for (const employeeId of employeeIds) {
@@ -1403,7 +1474,6 @@ export const data = {
         'SAFETY',
       );
     }
-    console.log('[EMAIL PLACEHOLDER] Safety bulletin sent:', bulletin.title);
     return mapSafetyBulletin(row as Record<string, unknown>);
   },
 
@@ -1449,6 +1519,256 @@ export const data = {
       .single();
     throwIf(error);
     return mapNotification(row as Record<string, unknown>);
+  },
+
+  // --- Milestone 3: Supervisors ---
+
+  async getSupervisors(): Promise<SupervisorUser[]> {
+    const { data: rows, error } = await sb()
+      .from('users')
+      .select('*')
+      .eq('role', 'SUPERVISOR')
+      .order('name');
+    throwIf(error);
+    const supervisors = (rows ?? []).map((row) => mapUser(row as Record<string, unknown>));
+    const withCounts = await Promise.all(
+      supervisors.map(async (user) => ({
+        ...user,
+        assignedJobSiteCount: (await data.getSupervisorJobSiteIds(user.id)).length,
+      })),
+    );
+    return withCounts;
+  },
+
+  async createSupervisorUser(input: CreateWorkerUserInput): Promise<unknown> {
+    return createAppUser({
+      name: input.name,
+      email: input.email,
+      password: input.password,
+      phone: input.phone,
+      role: 'SUPERVISOR',
+    });
+  },
+
+  async getSupervisorJobSiteIds(userId: string): Promise<string[]> {
+    const { data: rows, error } = await sb()
+      .from('supervisor_job_sites')
+      .select('job_site_id')
+      .eq('user_id', userId);
+    throwIf(error);
+    return (rows ?? []).map((r) => r.job_site_id as string);
+  },
+
+  async getJobSiteSupervisorIds(jobSiteId: string): Promise<string[]> {
+    const { data: rows, error } = await sb()
+      .from('supervisor_job_sites')
+      .select('user_id')
+      .eq('job_site_id', jobSiteId);
+    throwIf(error);
+    return (rows ?? []).map((r) => r.user_id as string);
+  },
+
+  async setJobSiteSupervisors(jobSiteId: string, userIds: string[]): Promise<void> {
+    const { error: delError } = await sb()
+      .from('supervisor_job_sites')
+      .delete()
+      .eq('job_site_id', jobSiteId);
+    throwIf(delError);
+    if (userIds.length === 0) return;
+    const { error } = await sb()
+      .from('supervisor_job_sites')
+      .insert(userIds.map((userId) => ({ user_id: userId, job_site_id: jobSiteId })));
+    throwIf(error);
+  },
+
+  async setSupervisorJobSites(userId: string, jobSiteIds: string[]): Promise<void> {
+    const { error: delError } = await sb().from('supervisor_job_sites').delete().eq('user_id', userId);
+    throwIf(delError);
+    if (jobSiteIds.length === 0) return;
+    const { error } = await sb()
+      .from('supervisor_job_sites')
+      .insert(jobSiteIds.map((jobSiteId) => ({ user_id: userId, job_site_id: jobSiteId })));
+    throwIf(error);
+  },
+
+  async getMySupervisorJobSiteIds(): Promise<string[]> {
+    const me = await data.getMe();
+    return data.getSupervisorJobSiteIds(me.id);
+  },
+
+  async getSupervisorPortalDashboard(): Promise<SupervisorDashboard> {
+    const { data: stats, error } = await sb().rpc('get_supervisor_dashboard_stats');
+    throwIf(error);
+    const s = stats as Record<string, number>;
+    const siteIds = await data.getMySupervisorJobSiteIds();
+    const today = new Date().toISOString().slice(0, 10);
+
+    let todayAttendance: AttendanceLog[] = [];
+    let pendingTimesheets: Timesheet[] = [];
+    let recentSignedTimesheets: Timesheet[] = [];
+
+    if (siteIds.length > 0) {
+      todayAttendance = await data.getSupervisorPortalAttendance({ date: today });
+      pendingTimesheets = await data.getSupervisorPortalTimesheets({ pendingOnly: true });
+      const all = await data.getSupervisorPortalTimesheets();
+      recentSignedTimesheets = all
+        .filter((t) => ['SIGNED', 'SENT', 'APPROVED'].includes(t.status))
+        .slice(0, 10);
+    }
+
+    return {
+      stats: {
+        assignedJobSites: s.assignedJobSites ?? 0,
+        workersAssigned: s.workersAssigned ?? 0,
+        clockedInToday: s.clockedInToday ?? 0,
+        pendingTimesheets: s.pendingTimesheets ?? 0,
+        signedTimesheets: s.signedTimesheets ?? 0,
+      },
+      todayAttendance,
+      pendingTimesheets,
+      recentSignedTimesheets,
+    };
+  },
+
+  async getSupervisorPortalJobSites(): Promise<CustomerJobSite[]> {
+    const siteIds = await data.getMySupervisorJobSiteIds();
+    if (siteIds.length === 0) return [];
+    const { data: rows, error } = await sb()
+      .from('job_sites')
+      .select(
+        '*, customer:customers(id, company_name), assignments:job_assignments(*, employee:employees(id, first_name, last_name, position))',
+      )
+      .in('id', siteIds)
+      .eq('status', 'ACTIVE')
+      .order('name');
+    throwIf(error);
+    return (rows ?? []).map((r) => {
+      const site = mapJobSite(r as Record<string, unknown>);
+      const assignments = ((r as Record<string, unknown>).assignments as Record<string, unknown>[]) ?? [];
+      return {
+        ...site,
+        assignments: assignments.map((a) => mapAssignment(a)),
+      };
+    });
+  },
+
+  async getSupervisorPortalAttendance(params?: {
+    date?: string;
+    jobSiteId?: string;
+    status?: string;
+  }): Promise<AttendanceLog[]> {
+    const siteIds = await data.getMySupervisorJobSiteIds();
+    if (siteIds.length === 0) return [];
+    let q = sb()
+      .from('attendance_logs')
+      .select(
+        '*, employee:employees(id, first_name, last_name), customer:customers(id, company_name), job_site:job_sites(id, name)',
+      )
+      .in('job_site_id', siteIds)
+      .order('clock_in_time', { ascending: false });
+    if (params?.jobSiteId) q = q.eq('job_site_id', params.jobSiteId);
+    if (params?.status) q = q.eq('status', params.status);
+    if (params?.date) {
+      q = q
+        .gte('clock_in_time', `${params.date}T00:00:00`)
+        .lte('clock_in_time', `${params.date}T23:59:59`);
+    }
+    const { data: rows, error } = await q;
+    throwIf(error);
+    return (rows ?? []).map((r) => mapAttendance(r as Record<string, unknown>));
+  },
+
+  async getSupervisorPortalTimesheets(params?: {
+    status?: string;
+    jobSiteId?: string;
+    pendingOnly?: boolean;
+  }): Promise<Timesheet[]> {
+    const siteIds = await data.getMySupervisorJobSiteIds();
+    if (siteIds.length === 0) return [];
+    let q = sb()
+      .from('timesheets')
+      .select(
+        '*, employee:employees(id, first_name, last_name), customer:customers(id, company_name), job_site:job_sites(id, name), signature:timesheet_signatures(*)',
+      )
+      .in('job_site_id', siteIds)
+      .order('created_at', { ascending: false });
+    if (params?.jobSiteId) q = q.eq('job_site_id', params.jobSiteId);
+    if (params?.status) q = q.eq('status', params.status);
+    const { data: rows, error } = await q;
+    throwIf(error);
+    let list = (rows ?? []).map((r) => mapTimesheet(r as Record<string, unknown>));
+    if (params?.pendingOnly) {
+      list = list.filter(
+        (t) =>
+          ['DRAFT', 'SUBMITTED'].includes(t.status) &&
+          !t.signature?.signatureImageUrl,
+      );
+    }
+    return list;
+  },
+
+  async getSupervisorHoursReport(params: {
+    from: string;
+    to: string;
+    jobSiteId?: string;
+  }): Promise<SupervisorHoursReportRow[]> {
+    const { data: rows, error } = await sb().rpc('get_supervisor_hours_report', {
+      p_from: params.from,
+      p_to: params.to,
+      p_job_site_id: params.jobSiteId ?? null,
+    });
+    throwIf(error);
+    const list = (rows ?? []) as Record<string, unknown>[];
+    return list.map((r) => ({
+      employeeId: r.employee_id as string,
+      firstName: r.first_name as string,
+      lastName: r.last_name as string,
+      jobSiteId: r.job_site_id as string,
+      jobSiteName: r.job_site_name as string,
+      totalHours: Number(r.total_hours ?? 0),
+      timesheetCount: Number(r.timesheet_count ?? 0),
+    }));
+  },
+
+  async getAdminHoursReport(params: {
+    from: string;
+    to: string;
+    customerId?: string;
+    jobSiteId?: string;
+  }): Promise<AdminHoursReportRow[]> {
+    const { data: rows, error } = await sb().rpc('get_admin_hours_report', {
+      p_from: params.from,
+      p_to: params.to,
+      p_customer_id: params.customerId ?? null,
+      p_job_site_id: params.jobSiteId ?? null,
+    });
+    throwIf(error);
+    const list = (rows ?? []) as Record<string, unknown>[];
+    return list.map((r) => ({
+      employeeId: r.employee_id as string,
+      firstName: r.first_name as string,
+      lastName: r.last_name as string,
+      customerId: r.customer_id as string,
+      companyName: r.company_name as string,
+      jobSiteId: r.job_site_id as string,
+      jobSiteName: r.job_site_name as string,
+      totalHours: Number(r.total_hours ?? 0),
+      timesheetCount: Number(r.timesheet_count ?? 0),
+    }));
+  },
+
+  async getAdminPendingSignatures(): Promise<Timesheet[]> {
+    const { data: rows, error } = await sb()
+      .from('timesheets')
+      .select(
+        '*, employee:employees(id, first_name, last_name), customer:customers(id, company_name), job_site:job_sites(id, name), signature:timesheet_signatures(*)',
+      )
+      .in('status', ['DRAFT', 'SUBMITTED'])
+      .order('created_at', { ascending: false });
+    throwIf(error);
+    return (rows ?? [])
+      .map((r) => mapTimesheet(r as Record<string, unknown>))
+      .filter((t) => !t.signature?.signatureImageUrl);
   },
 };
 

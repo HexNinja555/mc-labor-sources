@@ -11,8 +11,12 @@ export default function Index() {
     return <Redirect href="/(tabs)" />;
   }
 
+  if (user?.role === 'SUPERVISOR') {
+    return <Redirect href="/(supervisor)/timesheets" />;
+  }
+
   if (user) {
-    return <Redirect href="/(auth)/login?error=not-worker" />;
+    return <Redirect href="/(auth)/login?error=not-mobile" />;
   }
 
   return <Redirect href="/(auth)/login" />;

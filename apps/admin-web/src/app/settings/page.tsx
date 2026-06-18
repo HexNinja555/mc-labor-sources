@@ -3,8 +3,11 @@
 import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { updateSettingsSchema } from '@mc-labor/shared';
+import type { z } from 'zod';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { PageTitle } from '@/components/layout/PageTitle';
+import { BrandPageTitle } from '@/components/brand';
 import { BRAND_HERO_IMAGES } from '@/lib/navigation';
 import { portalFormFieldClassName } from '@/components/portal';
 import { Button } from '@/components/ui/Button';
@@ -12,6 +15,8 @@ import { Input } from '@/components/ui/Input';
 import { FormField } from '@/components/ui/FormField';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { api } from '@/lib/api-client';
+
+type SettingsFormInput = z.infer<typeof updateSettingsSchema>;
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
@@ -21,7 +26,8 @@ export default function SettingsPage() {
     queryFn: () => api.getSettings(),
   });
 
-  const form = useForm({
+  const form = useForm<SettingsFormInput>({
+    resolver: zodResolver(updateSettingsSchema),
     defaultValues: {
       companyName: '',
       officeEmail: '',
@@ -32,8 +38,7 @@ export default function SettingsPage() {
   const { reset } = form;
 
   const saveMutation = useMutation({
-    mutationFn: (values: { companyName: string; officeEmail: string; dashboardSubdomain: string }) =>
-      api.updateSettings(values),
+    mutationFn: (values: SettingsFormInput) => api.updateSettings(values),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings'] }),
   });
 
@@ -48,7 +53,7 @@ export default function SettingsPage() {
 
   return (
     <DashboardLayout heroTitle="Settings" heroImage={BRAND_HERO_IMAGES.inner}>
-      <PageTitle title="Settings" description="Company configuration and portal preferences" />
+      <BrandPageTitle title="Settings" description="Company configuration and portal preferences" />
 
       {isLoading && <LoadingState />}
 
@@ -76,7 +81,8 @@ export default function SettingsPage() {
               />
             </FormField>
             <p className="rounded-xl bg-slate-50 px-4 py-3 text-xs leading-relaxed text-gray-500">
-              Notification and email provider settings will be configured in Milestone 4.
+              In-app notifications are delivered to workers and customer portal users. Email delivery
+              to external inboxes will be configured in Milestone 4.
             </p>
             <div className="border-t border-gray-100 pt-4">
               <Button type="submit" icon="save" loading={saveMutation.isPending}>

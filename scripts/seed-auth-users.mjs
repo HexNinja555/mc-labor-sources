@@ -8,6 +8,7 @@ import { readFileSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
+import { updateUserSchema } from '../packages/shared/dist/schemas.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const envPath = resolve(root, '.env');
@@ -49,6 +50,12 @@ async function ensureAuthUser(supabase, email, password, name, role) {
   const { data: listed } = await supabase.auth.admin.listUsers({ perPage: 1000 });
   const existing = listed?.users?.find((u) => u.email?.toLowerCase() === normalized);
   if (existing) {
+    updateUserSchema.parse({
+      name,
+      email: normalized,
+      password,
+      role,
+    });
     await supabase.auth.admin.updateUserById(existing.id, {
       password,
       email_confirm: true,

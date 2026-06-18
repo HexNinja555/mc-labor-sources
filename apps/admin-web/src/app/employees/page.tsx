@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   createEmployeeSchema,
+  updateEmployeeSchema,
   createWorkerUserSchema,
   bulkEmployeeRowSchema,
   EmployeeStatus,
@@ -14,7 +15,7 @@ import {
   type BulkEmployeeRow,
 } from '@mc-labor/shared';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { PageTitle } from '@/components/layout/PageTitle';
+import { BrandPageTitle } from '@/components/brand';
 import { BRAND_HERO_IMAGES } from '@/lib/navigation';
 import {
   PortalFilterPanel,
@@ -76,7 +77,8 @@ export default function EmployeesPage() {
   }, [data]);
 
   const form = useForm<CreateEmployeeInput>({
-    resolver: zodResolver(createEmployeeSchema),
+    resolver: async (data, context, options) =>
+      zodResolver(editing ? updateEmployeeSchema : createEmployeeSchema)(data, context, options),
     defaultValues: {
       firstName: '',
       lastName: '',
@@ -178,7 +180,7 @@ export default function EmployeesPage() {
 
   return (
     <DashboardLayout heroTitle="Employees" heroImage={BRAND_HERO_IMAGES.default}>
-      <PageTitle
+      <BrandPageTitle
         title="Employees"
         description="Manage MC Labor workforce"
         action={

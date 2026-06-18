@@ -12,4 +12,4 @@ export {
   IconDocument,
   IconBell,
   IconShield,
-} from './DashboardIcons';
+} from '@/components/ui/icons';
