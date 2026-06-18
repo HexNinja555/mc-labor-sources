@@ -11,7 +11,7 @@ Supabase-first workforce management: web and mobile talk directly to **Supabase*
 | **Auth** | Supabase Auth |
 | **Storage** | Supabase Storage |
 | **Mobile** | Expo, Supabase JS |
-| **Edge Functions** | `create-app-user` (admin user provisioning) |
+| **Edge Functions** | `create-app-user`, `bulk-create-workers`, `send-transactional-email`, `send-test-email`, `send-push-notification` |
 
 ## Prerequisites
 
@@ -53,7 +53,7 @@ pnpm seed:auth            # creates demo Auth users + links profiles
 In Supabase dashboard:
 - **Auth → Email** → disable **Confirm email** (demo)
 - **Storage** → create buckets: `documents`, `signatures`, `safety-bulletins`
-- Deploy edge function: `supabase functions deploy create-app-user`
+- Deploy edge functions: `supabase functions deploy create-app-user bulk-create-workers send-transactional-email send-test-email send-push-notification`
 
 ### 4. Run web app
 
@@ -76,6 +76,7 @@ Password for all: **`Password123!`**
 
 | Role | Email |
 |------|-------|
+| Super Admin | superadmin@mclabor.demo |
 | Admin | admin@mclabor.demo |
 | Customer | customer@mclabor.demo |
 | Supervisor | supervisor@mclabor.demo |
@@ -83,15 +84,20 @@ Password for all: **`Password123!`**
 
 Supervisors can sign timesheets from the **web portal** (`/supervisor/timesheets`) or the **mobile app** (Timesheets tab after login).
 
-## Milestones 1–3 — Feature summary
+## Milestones 1–4 — Feature summary
 
 | Milestone | Delivered |
 |-----------|-----------|
 | **M1** | Admin CRUD, customer portal, auth, RLS, user provisioning |
 | **M2** | Worker mobile (clock, assignments, job orders, timesheets), admin ops modules, in-app notifications |
 | **M3** | Supervisor web/mobile signing, customer signed views, reports + CSV, supervisor management |
+| **M4** | SMTP email delivery, Expo push notifications, admin notification settings, production deploy docs |
 
-Full acceptance checklist: **[docs/M1-M3-ACCEPTANCE.md](docs/M1-M3-ACCEPTANCE.md)**
+Full acceptance checklist: **[docs/M1-M4-ACCEPTANCE.md](docs/M1-M4-ACCEPTANCE.md)**
+
+Production deployment: **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**
+
+Legacy M1–M3 checklist: **[docs/M1-M3-ACCEPTANCE.md](docs/M1-M3-ACCEPTANCE.md)**
 
 Quick M3 reference:
 
@@ -123,7 +129,7 @@ psql $DATABASE_URL -f supabase/seed-incremental.sql
 
 ### Manual test checklist
 
-See **[docs/M1-M3-ACCEPTANCE.md](docs/M1-M3-ACCEPTANCE.md)** for the full M1–M3 acceptance checklist.
+See **[docs/M1-M4-ACCEPTANCE.md](docs/M1-M4-ACCEPTANCE.md)** for the full acceptance checklist.
 
 ## Architecture
 

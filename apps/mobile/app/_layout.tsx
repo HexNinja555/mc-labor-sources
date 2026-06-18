@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useFonts, Montserrat_400Regular, Montserrat_500Medium, Montserrat_600SemiBold, Montserrat_700Bold } from '@expo-google-fonts/montserrat';
 import { headerScreenOptions } from '@/theme/brand';
 import { AuthProvider } from '@/context/AuthContext';
+import { NotificationBootstrap } from '@/components/NotificationBootstrap';
 
 export default function RootLayout() {
   const [loaded] = useFonts({
@@ -18,6 +19,7 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
+      <NotificationBootstrap />
       <StatusBar style="dark" />
       <Stack screenOptions={headerScreenOptions}>
         <Stack.Screen name="index" options={{ headerShown: false }} />

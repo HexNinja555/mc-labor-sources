@@ -210,6 +210,13 @@ export interface CompanySettings {
   companyName: string;
   officeEmail: string | null;
   dashboardSubdomain: string | null;
+  smtpHost: string | null;
+  smtpPort: number | null;
+  smtpUser: string | null;
+  smtpFromEmail: string | null;
+  smtpFromName: string | null;
+  emailEnabled: boolean;
+  pushEnabled: boolean;
 }
 
 export interface AuthUser {

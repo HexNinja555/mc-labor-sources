@@ -18,6 +18,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { BRAND_PHONE, BRAND_PHONE_HREF, fonts, FF, cardShadow, accents, type AccentKey } from '@/theme/brand';
 import { AuthAppHeader, AuthHero, ErrorBanner, InfoBanner, Screen, screenLayout } from '@/components/ui';
 import { signIn, getMe } from '@/lib/api';
+import { registerForPushNotifications } from '@/lib/push';
 import { useAuth } from '@/context/AuthContext';
 
 function LoginField({
@@ -78,8 +79,10 @@ export default function LoginScreen() {
       await refresh();
       const profile = await getMe();
       if (profile.role === 'WORKER') {
+        await registerForPushNotifications(profile.id).catch(() => {});
         router.replace('/(tabs)');
       } else if (profile.role === 'SUPERVISOR') {
+        await registerForPushNotifications(profile.id).catch(() => {});
         router.replace('/(supervisor)/timesheets');
       } else {
         await signOut();

@@ -180,6 +180,38 @@ export const updateSettingsSchema = z.object({
   companyName: z.string().optional(),
   officeEmail: z.string().email().optional().or(z.literal('')),
   dashboardSubdomain: z.string().optional(),
+  smtpHost: z.string().optional(),
+  smtpPort: z.coerce.number().int().positive().optional(),
+  smtpUser: z.string().optional(),
+  smtpFromEmail: z.string().email().optional().or(z.literal('')),
+  smtpFromName: z.string().optional(),
+  emailEnabled: z.boolean().optional(),
+  pushEnabled: z.boolean().optional(),
+});
+
+export const registerPushTokenSchema = z.object({
+  expoPushToken: z.string().min(1),
+  platform: z.enum(['ios', 'android', 'web']).optional(),
+});
+
+export const sendTestEmailSchema = z.object({
+  recipientEmail: z.string().email(),
+});
+
+export const sendTransactionalEmailSchema = z.object({
+  template: z.enum(['JOB_ORDER', 'SAFETY', 'TIMESHEET_SIGNED', 'TIMESHEET_SENT']),
+  recipientEmail: z.string().email(),
+  subject: z.string().min(1),
+  context: z.record(z.string()).optional(),
+  relatedId: z.string().uuid().optional(),
+});
+
+export const sendPushNotificationSchema = z.object({
+  userId: z.string().uuid().optional(),
+  employeeId: z.string().uuid().optional(),
+  title: z.string().min(1),
+  body: z.string().min(1),
+  data: z.record(z.string()).optional(),
 });
 
 export const attendanceFilterSchema = z.object({
@@ -261,3 +293,5 @@ export type CreateAssignmentInput = z.infer<typeof createAssignmentSchema>;
 export type CreateJobOrderInput = z.infer<typeof createJobOrderSchema>;
 export type CreateTimesheetInput = z.infer<typeof createTimesheetSchema>;
 export type SignTimesheetInput = z.infer<typeof signTimesheetSchema>;
+export type RegisterPushTokenInput = z.infer<typeof registerPushTokenSchema>;
+export type SendTestEmailInput = z.infer<typeof sendTestEmailSchema>;

@@ -66,6 +66,45 @@ async function createAppUser(body: Record<string, unknown>): Promise<unknown> {
   return json;
 }
 
+async function invokeEdgeFunction(name: string, body: Record<string, unknown>): Promise<void> {
+  try {
+    const { data: session } = await sb().auth.getSession();
+    const token = session.session?.access_token;
+    if (!token) return;
+    await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/${name}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    // fire-and-forget — in-app notifications remain primary
+  }
+}
+
+async function sendTransactionalEmail(payload: {
+  template: 'JOB_ORDER' | 'SAFETY' | 'TIMESHEET_SIGNED' | 'TIMESHEET_SENT';
+  recipientEmail: string;
+  subject: string;
+  context?: Record<string, string>;
+  relatedId?: string;
+}): Promise<void> {
+  if (!payload.recipientEmail) return;
+  await invokeEdgeFunction('send-transactional-email', payload);
+}
+
+async function sendPushNotification(payload: {
+  userId?: string;
+  employeeId?: string;
+  title: string;
+  body: string;
+  data?: Record<string, string>;
+}): Promise<void> {
+  await invokeEdgeFunction('send-push-notification', payload);
+}
+
 // --- mappers: snake_case DB -> camelCase UI ---
 
 function mapEmployee(row: Record<string, unknown>): Employee {
@@ -401,6 +440,13 @@ function mapSettings(row: Record<string, unknown>): CompanySettings {
     companyName: row.company_name as string,
     officeEmail: (row.office_email as string) ?? null,
     dashboardSubdomain: (row.dashboard_subdomain as string) ?? null,
+    smtpHost: (row.smtp_host as string) ?? null,
+    smtpPort: row.smtp_port != null ? Number(row.smtp_port) : null,
+    smtpUser: (row.smtp_user as string) ?? null,
+    smtpFromEmail: (row.smtp_from_email as string) ?? null,
+    smtpFromName: (row.smtp_from_name as string) ?? null,
+    emailEnabled: Boolean(row.email_enabled),
+    pushEnabled: Boolean(row.push_enabled),
   };
 }
 
@@ -1020,6 +1066,13 @@ export const data = {
     if (payload.companyName !== undefined) update.company_name = payload.companyName;
     if (payload.officeEmail !== undefined) update.office_email = payload.officeEmail;
     if (payload.dashboardSubdomain !== undefined) update.dashboard_subdomain = payload.dashboardSubdomain;
+    if (payload.smtpHost !== undefined) update.smtp_host = payload.smtpHost || null;
+    if (payload.smtpPort !== undefined) update.smtp_port = payload.smtpPort ?? null;
+    if (payload.smtpUser !== undefined) update.smtp_user = payload.smtpUser || null;
+    if (payload.smtpFromEmail !== undefined) update.smtp_from_email = payload.smtpFromEmail || null;
+    if (payload.smtpFromName !== undefined) update.smtp_from_name = payload.smtpFromName || null;
+    if (payload.emailEnabled !== undefined) update.email_enabled = payload.emailEnabled;
+    if (payload.pushEnabled !== undefined) update.push_enabled = payload.pushEnabled;
     const { data: row, error } = await sb()
       .from('company_settings')
       .update(update)
@@ -1028,6 +1081,23 @@ export const data = {
       .single();
     throwIf(error);
     return mapSettings(row as Record<string, unknown>);
+  },
+
+  async sendTestEmail(recipientEmail: string): Promise<void> {
+    const { data: session } = await sb().auth.getSession();
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-test-email`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.session?.access_token}`,
+        },
+        body: JSON.stringify({ recipientEmail }),
+      },
+    );
+    const json = await res.json();
+    if (!res.ok) throw new DataError(json.error || 'Failed to send test email');
   },
 
   // --- Milestone 2: Job Orders ---
@@ -1130,12 +1200,34 @@ export const data = {
       .single();
     throwIf(error);
     if (order.employeeId) {
-      await createNotificationForEmployee(
-        order.employeeId,
-        `Job Order: ${order.title}`,
-        `You have a new job order (${order.orderNumber}) starting ${order.startDate}.`,
-        'JOB_ORDER',
-      );
+      const title = `Job Order: ${order.title}`;
+      const message = `You have a new job order (${order.orderNumber}) starting ${order.startDate}.`;
+      await createNotificationForEmployee(order.employeeId, title, message, 'JOB_ORDER');
+      const { data: employee } = await sb()
+        .from('employees')
+        .select('email')
+        .eq('id', order.employeeId)
+        .maybeSingle();
+      const workerEmail = (employee?.email as string) ?? '';
+      if (workerEmail) {
+        await sendTransactionalEmail({
+          template: 'JOB_ORDER',
+          recipientEmail: workerEmail,
+          subject: title,
+          relatedId: id,
+          context: {
+            orderNumber: order.orderNumber,
+            startDate: order.startDate,
+            instructions: order.instructions ?? '',
+          },
+        });
+      }
+      await sendPushNotification({
+        employeeId: order.employeeId,
+        title,
+        body: message,
+        data: { type: 'JOB_ORDER', id },
+      });
     }
     return mapJobOrder(row as Record<string, unknown>);
   },
@@ -1256,12 +1348,43 @@ export const data = {
     });
     throwIf(error);
     if (timesheet.customerId) {
-      await createNotificationsForCustomerUsers(
-        timesheet.customerId,
-        'Timesheet Signed',
-        `A timesheet has been signed for ${timesheet.jobSite?.name ?? 'your job site'}.`,
-        'SYSTEM',
-      );
+      const title = 'Timesheet Signed';
+      const message = `A timesheet has been signed for ${timesheet.jobSite?.name ?? 'your job site'}.`;
+      await createNotificationsForCustomerUsers(timesheet.customerId, title, message, 'SYSTEM');
+      const { data: customer } = await sb()
+        .from('customers')
+        .select('office_email, company_name')
+        .eq('id', timesheet.customerId)
+        .maybeSingle();
+      const recipientEmail =
+        (payload.foremanEmail as string) || (customer?.office_email as string) || '';
+      if (recipientEmail) {
+        await sendTransactionalEmail({
+          template: 'TIMESHEET_SIGNED',
+          recipientEmail,
+          subject: title,
+          relatedId: id,
+          context: {
+            jobSiteName: timesheet.jobSite?.name ?? '',
+            foremanName: payload.foremanName,
+            companyName: (customer?.company_name as string) ?? '',
+          },
+        });
+      }
+      const { data: customerUsers } = await sb()
+        .from('users')
+        .select('id')
+        .eq('customer_id', timesheet.customerId)
+        .eq('role', 'CUSTOMER')
+        .eq('status', 'ACTIVE');
+      for (const u of customerUsers ?? []) {
+        await sendPushNotification({
+          userId: u.id as string,
+          title,
+          body: message,
+          data: { type: 'TIMESHEET_SIGNED', id },
+        });
+      }
     }
     return data.getTimesheet(id);
   },
@@ -1297,12 +1420,47 @@ export const data = {
     throwIf(error);
     const mapped = mapTimesheet(row as Record<string, unknown>);
     if (flags.sentToCustomerOffice && mapped.customerId) {
-      await createNotificationsForCustomerUsers(
-        mapped.customerId,
-        'Timesheet Sent to Office',
-        `Signed timesheet for ${mapped.jobSite?.name ?? 'job site'} was marked sent to your office.`,
-        'SYSTEM',
-      );
+      const title = 'Timesheet Sent to Office';
+      const message = `Signed timesheet for ${mapped.jobSite?.name ?? 'job site'} was marked sent to your office.`;
+      await createNotificationsForCustomerUsers(mapped.customerId, title, message, 'SYSTEM');
+      const { data: customer } = await sb()
+        .from('customers')
+        .select('office_email')
+        .eq('id', mapped.customerId)
+        .maybeSingle();
+      const customerEmail = (customer?.office_email as string) ?? '';
+      if (customerEmail) {
+        await sendTransactionalEmail({
+          template: 'TIMESHEET_SENT',
+          recipientEmail: customerEmail,
+          subject: title,
+          relatedId: id,
+          context: { jobSiteName: mapped.jobSite?.name ?? '' },
+        });
+      }
+      const { data: customerUsers } = await sb()
+        .from('users')
+        .select('id')
+        .eq('customer_id', mapped.customerId)
+        .eq('role', 'CUSTOMER')
+        .eq('status', 'ACTIVE');
+      for (const u of customerUsers ?? []) {
+        await sendPushNotification({
+          userId: u.id as string,
+          title,
+          body: message,
+          data: { type: 'TIMESHEET_SENT', id },
+        });
+      }
+    }
+    if (flags.sentToMcLaborOffice) {
+      await invokeEdgeFunction('send-transactional-email', {
+        template: 'TIMESHEET_SENT',
+        useMcLaborOfficeEmail: true,
+        subject: 'Timesheet sent to MC Labor office',
+        relatedId: id,
+        context: { jobSiteName: mapped.jobSite?.name ?? '' },
+      });
     }
     return mapped;
   },
@@ -1467,12 +1625,29 @@ export const data = {
     }
 
     for (const employeeId of employeeIds) {
-      await createNotificationForEmployee(
+      const title = `Safety: ${bulletin.title}`;
+      await createNotificationForEmployee(employeeId, title, bulletin.message, 'SAFETY');
+      const { data: employee } = await sb()
+        .from('employees')
+        .select('email')
+        .eq('id', employeeId)
+        .maybeSingle();
+      const workerEmail = (employee?.email as string) ?? '';
+      if (workerEmail) {
+        await sendTransactionalEmail({
+          template: 'SAFETY',
+          recipientEmail: workerEmail,
+          subject: title,
+          relatedId: id,
+          context: { message: bulletin.message },
+        });
+      }
+      await sendPushNotification({
         employeeId,
-        `Safety: ${bulletin.title}`,
-        bulletin.message,
-        'SAFETY',
-      );
+        title,
+        body: bulletin.message,
+        data: { type: 'SAFETY', id },
+      });
     }
     return mapSafetyBulletin(row as Record<string, unknown>);
   },
