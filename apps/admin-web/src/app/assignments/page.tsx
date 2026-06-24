@@ -18,6 +18,7 @@ import {
   PortalFilterPanel,
   PortalRecordsPanel,
   PortalSummaryStat,
+  PortalFilterField,
   portalFieldClassName,
   portalFormFieldClassName,
   PersonCell,
@@ -282,47 +283,55 @@ export default function AssignmentsPage() {
       )}
 
       <PortalFilterPanel>
-        <div className="space-y-5">
+        <div className="space-y-6">
           <WeekEndingFilter value={workingWeek} onChange={setWorkingWeek} />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
-          <FormField label="Customer">
-            <Select
-              value={customerFilter}
-              onChange={(e) => setCustomerFilter(e.target.value)}
-              className={portalFieldClassName}
-            >
-              <option value="">All customers</option>
-              {filterCustomers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.companyName}
-                </option>
-              ))}
-            </Select>
-          </FormField>
-          <FormField label="Status">
-            <Select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className={portalFieldClassName}
-            >
-              <option value="">All statuses</option>
-              {Object.values(AssignmentStatus).map((s) => (
-                <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
-              ))}
-            </Select>
-          </FormField>
-          {hasActiveFilters ? (
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                setCustomerFilter('');
-                setStatusFilter('');
-              }}
-            >
-              Clear filters
-            </Button>
-          ) : null}
+
+          <div className="border-t border-slate-100 pt-6">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_auto] xl:items-end">
+              <PortalFilterField label="Customer">
+                <Select
+                  value={customerFilter}
+                  onChange={(e) => setCustomerFilter(e.target.value)}
+                  className={portalFieldClassName}
+                >
+                  <option value="">All customers</option>
+                  {filterCustomers.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.companyName}
+                    </option>
+                  ))}
+                </Select>
+              </PortalFilterField>
+
+              <PortalFilterField label="Status">
+                <Select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className={portalFieldClassName}
+                >
+                  <option value="">All statuses</option>
+                  {Object.values(AssignmentStatus).map((s) => (
+                    <option key={s} value={s}>
+                      {s.replace(/_/g, ' ')}
+                    </option>
+                  ))}
+                </Select>
+              </PortalFilterField>
+
+              {hasActiveFilters ? (
+                <Button
+                  type="button"
+                  variant="soft"
+                  className="h-[42px] w-full xl:w-auto"
+                  onClick={() => {
+                    setCustomerFilter('');
+                    setStatusFilter('');
+                  }}
+                >
+                  Clear filters
+                </Button>
+              ) : null}
+            </div>
           </div>
         </div>
       </PortalFilterPanel>

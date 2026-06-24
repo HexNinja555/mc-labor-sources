@@ -21,6 +21,7 @@ import {
   PortalFilterPanel,
   PortalRecordsPanel,
   PortalSummaryStat,
+  PortalFilterField,
   portalFieldClassName,
   portalFormFieldClassName,
   PersonCell,
@@ -214,16 +215,16 @@ export default function CustomersPage() {
       )}
 
       <PortalFilterPanel title="Search & filter">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <FormField label="Keywords">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+          <PortalFilterField label="Keywords">
             <Input
-              placeholder="Search by company, contact, or email..."
+              placeholder="Company, contact, or email…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className={portalFieldClassName}
             />
-          </FormField>
-          <FormField label="Salesman">
+          </PortalFilterField>
+          <PortalFilterField label="Salesman">
             <Select
               value={salesmanFilter}
               onChange={(e) => setSalesmanFilter(e.target.value)}
@@ -236,8 +237,8 @@ export default function CustomersPage() {
                 </option>
               ))}
             </Select>
-          </FormField>
-          <FormField label="Customer type">
+          </PortalFilterField>
+          <PortalFilterField label="Customer type">
             <Select
               value={customerTypeFilter}
               onChange={(e) => setCustomerTypeFilter(e.target.value)}
@@ -250,8 +251,8 @@ export default function CustomersPage() {
                 </option>
               ))}
             </Select>
-          </FormField>
-          <FormField label="Status">
+          </PortalFilterField>
+          <PortalFilterField label="Status">
             <Select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -261,7 +262,7 @@ export default function CustomersPage() {
               <option value="ACTIVE">Active</option>
               <option value="INACTIVE">Inactive</option>
             </Select>
-          </FormField>
+          </PortalFilterField>
         </div>
       </PortalFilterPanel>
 
