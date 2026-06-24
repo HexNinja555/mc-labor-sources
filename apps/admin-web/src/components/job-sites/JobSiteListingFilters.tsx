@@ -12,6 +12,8 @@ interface JobSiteListingFiltersProps {
   onChange: (next: JobSiteFilterValues) => void;
   locations: string[];
   customers?: { id: string; companyName: string }[];
+  salesmen?: string[];
+  customerTypes?: string[];
   showCustomerFilter?: boolean;
 }
 
@@ -29,6 +31,8 @@ export function JobSiteListingFilters({
   onChange,
   locations,
   customers = [],
+  salesmen = [],
+  customerTypes = [],
   showCustomerFilter = false,
 }: JobSiteListingFiltersProps) {
   const update = (patch: Partial<JobSiteFilterValues>) => onChange({ ...filters, ...patch });
@@ -36,6 +40,8 @@ export function JobSiteListingFilters({
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
   };
+
+  const selectClassName = `${formControlClassName} min-w-[11rem] flex-1`;
 
   return (
     <form
@@ -49,14 +55,13 @@ export function JobSiteListingFilters({
         className={formControlClassName}
       />
 
-      <div
-        className={`mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 ${showCustomerFilter ? 'xl:grid-cols-4' : 'xl:grid-cols-3'}`}
-      >
-        {showCustomerFilter && (
+      <div className="mt-4 flex flex-wrap gap-3">
+        {showCustomerFilter ? (
           <Select
             value={filters.customerId}
             onChange={(event) => update({ customerId: event.target.value })}
-            className={formControlClassName}
+            className={selectClassName}
+            aria-label="Customer"
           >
             <option value="">All customers</option>
             {customers.map((customer) => (
@@ -65,12 +70,45 @@ export function JobSiteListingFilters({
               </option>
             ))}
           </Select>
-        )}
+        ) : null}
+
+        {salesmen.length > 0 ? (
+          <Select
+            value={filters.salesman}
+            onChange={(event) => update({ salesman: event.target.value })}
+            className={selectClassName}
+            aria-label="Salesman"
+          >
+            <option value="">All salesmen</option>
+            {salesmen.map((salesman) => (
+              <option key={salesman} value={salesman}>
+                {salesman}
+              </option>
+            ))}
+          </Select>
+        ) : null}
+
+        {customerTypes.length > 0 ? (
+          <Select
+            value={filters.customerType}
+            onChange={(event) => update({ customerType: event.target.value })}
+            className={selectClassName}
+            aria-label="Customer type"
+          >
+            <option value="">All customer types</option>
+            {customerTypes.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </Select>
+        ) : null}
 
         <Select
           value={filters.status}
           onChange={(event) => update({ status: event.target.value })}
-          className={formControlClassName}
+          className={selectClassName}
+          aria-label="Status"
         >
           <option value="">All statuses</option>
           <option value="ACTIVE">Active</option>
@@ -80,7 +118,8 @@ export function JobSiteListingFilters({
         <Select
           value={filters.location}
           onChange={(event) => update({ location: event.target.value })}
-          className={formControlClassName}
+          className={selectClassName}
+          aria-label="Location"
         >
           <option value="">All locations</option>
           {locations.map((location) => (
@@ -90,11 +129,7 @@ export function JobSiteListingFilters({
           ))}
         </Select>
 
-        <Button
-          type="submit"
-          className="h-[42px] w-full"
-          aria-label="Search job sites"
-        >
+        <Button type="submit" className="h-[42px] shrink-0 px-6" aria-label="Search job sites">
           <SearchIcon className="mr-2 h-4 w-4" />
           Search
         </Button>

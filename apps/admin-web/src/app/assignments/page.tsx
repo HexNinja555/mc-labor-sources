@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -37,10 +37,21 @@ import { Badge } from '@/components/ui/Badge';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { api, type Assignment, DataError } from '@/lib/api-client';
+import {
+  assignmentCustomerLabel,
+  customersWithAssignments,
+  filterAssignments,
+} from '@/lib/assignment-filter-utils';
+import { WeekEndingFilter } from '@/components/assignments/WeekEndingFilter';
+import { formatWeekEndingFridayLabel, getCurrentWorkingWeek } from '@/lib/working-week';
 
 const OPEN_STATUSES = ['PENDING', 'ACCEPTED', 'ACTIVE'];
 
 export default function AssignmentsPage() {
+  const [workingWeek, setWorkingWeek] = useState(() => {
+    const current = getCurrentWorkingWeek();
+    return { weekStart: current.weekStart, weekEnd: current.weekEnd };
+  });
   const [customerFilter, setCustomerFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -68,22 +79,52 @@ export default function AssignmentsPage() {
     queryFn: () => api.getAssignments(),
   });
 
-  const filtered = useMemo(() => {
-    let items = data ?? [];
-    if (customerFilter) items = items.filter((a) => a.customerId === customerFilter);
-    if (statusFilter) items = items.filter((a) => a.status === statusFilter);
-    return items;
-  }, [data, customerFilter, statusFilter]);
+  const weekFiltered = useMemo(
+    () =>
+      filterAssignments(data ?? [], {
+        weekStart: workingWeek.weekStart,
+        weekEnd: workingWeek.weekEnd,
+      }),
+    [data, workingWeek.weekStart, workingWeek.weekEnd],
+  );
+
+  const filtered = useMemo(
+    () =>
+      filterAssignments(weekFiltered, {
+        customerId: customerFilter || undefined,
+        status: statusFilter || undefined,
+      }),
+    [weekFiltered, customerFilter, statusFilter],
+  );
+
+  const filterCustomers = useMemo(
+    () => customersWithAssignments(customers ?? [], weekFiltered),
+    [customers, weekFiltered],
+  );
+
+  const selectedCustomerName = useMemo(
+    () => customers?.find((c) => c.id === customerFilter)?.companyName,
+    [customers, customerFilter],
+  );
+
+  const hasActiveFilters = Boolean(customerFilter || statusFilter);
+
+  useEffect(() => {
+    if (!customerFilter || filterCustomers.length === 0) return;
+    if (!filterCustomers.some((c) => c.id === customerFilter)) {
+      setCustomerFilter('');
+    }
+  }, [customerFilter, filterCustomers]);
 
   const stats = useMemo(() => {
-    const items = data ?? [];
+    const items = filtered;
     return {
       total: items.length,
       active: items.filter((a) => a.status === 'ACTIVE').length,
       pending: items.filter((a) => a.status === 'PENDING').length,
       completed: items.filter((a) => a.status === 'COMPLETED').length,
     };
-  }, [data]);
+  }, [filtered]);
 
   const form = useForm<CreateAssignmentInput>({
     resolver: async (data, context, options) =>
@@ -209,31 +250,41 @@ export default function AssignmentsPage() {
       />
 
       {data && data.length > 0 && (
-        <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <PortalSummaryStat label="Total" value={stats.total} icon={<IconBriefcase className="h-5 w-5" />} />
-          <PortalSummaryStat
-            label="Active"
-            value={stats.active}
-            icon={<IconUsers className="h-5 w-5" />}
-            accent="green"
-          />
-          <PortalSummaryStat
-            label="Pending"
-            value={stats.pending}
-            icon={<IconClock className="h-5 w-5" />}
-            accent="amber"
-          />
-          <PortalSummaryStat
-            label="Completed"
-            value={stats.completed}
-            icon={<IconBriefcase className="h-5 w-5" />}
-            accent="slate"
-          />
+        <div className="mb-6 space-y-2">
+          <p className="text-sm text-slate-600">
+            Week ending {formatWeekEndingFridayLabel(workingWeek.weekEnd)} · showing {filtered.length} of{' '}
+            {weekFiltered.length} assignment{weekFiltered.length === 1 ? '' : 's'}
+            {selectedCustomerName ? ` for ${selectedCustomerName}` : ''}
+            {hasActiveFilters && weekFiltered.length !== filtered.length ? ' (filtered)' : ''}.
+          </p>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <PortalSummaryStat label="Total" value={stats.total} icon={<IconBriefcase className="h-5 w-5" />} />
+            <PortalSummaryStat
+              label="Active"
+              value={stats.active}
+              icon={<IconUsers className="h-5 w-5" />}
+              accent="green"
+            />
+            <PortalSummaryStat
+              label="Pending"
+              value={stats.pending}
+              icon={<IconClock className="h-5 w-5" />}
+              accent="amber"
+            />
+            <PortalSummaryStat
+              label="Completed"
+              value={stats.completed}
+              icon={<IconBriefcase className="h-5 w-5" />}
+              accent="slate"
+            />
+          </div>
         </div>
       )}
 
       <PortalFilterPanel>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-5">
+          <WeekEndingFilter value={workingWeek} onChange={setWorkingWeek} />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
           <FormField label="Customer">
             <Select
               value={customerFilter}
@@ -241,8 +292,10 @@ export default function AssignmentsPage() {
               className={portalFieldClassName}
             >
               <option value="">All customers</option>
-              {customers?.map((c) => (
-                <option key={c.id} value={c.id}>{c.companyName}</option>
+              {filterCustomers.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.companyName}
+                </option>
               ))}
             </Select>
           </FormField>
@@ -258,14 +311,41 @@ export default function AssignmentsPage() {
               ))}
             </Select>
           </FormField>
+          {hasActiveFilters ? (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setCustomerFilter('');
+                setStatusFilter('');
+              }}
+            >
+              Clear filters
+            </Button>
+          ) : null}
+          </div>
         </div>
       </PortalFilterPanel>
 
       {isLoading && <LoadingState />}
       {!isLoading && filtered.length === 0 && (
         <EmptyState
-          title={data?.length ? 'No assignments match your filters' : 'No assignments found'}
-          description="Create an assignment to schedule an employee at a job site."
+          title={
+            weekFiltered.length === 0 && data?.length
+              ? 'No assignments this week'
+              : hasActiveFilters && weekFiltered.length
+                ? 'No assignments for this filter'
+                : data?.length
+                  ? 'No assignments match your filters'
+                  : 'No assignments found'
+          }
+          description={
+            weekFiltered.length === 0 && data?.length
+              ? `No assignments overlap the week ending ${formatWeekEndingFridayLabel(workingWeek.weekEnd)}. Try Last Week, another week ending date, or All customers.`
+              : hasActiveFilters && weekFiltered.length
+                ? `There are ${weekFiltered.length} assignment${weekFiltered.length === 1 ? '' : 's'} this week, but none match the current customer or status filter. Choose All customers or clear filters.`
+                : 'Create an assignment to schedule an employee at a job site.'
+          }
         />
       )}
       {filtered.length > 0 && (
@@ -292,7 +372,10 @@ export default function AssignmentsPage() {
                     )}
                   </Td>
                   <Td>
-                    <TitleCell title={a.jobSite?.name ?? '—'} subtitle={a.customer?.companyName} />
+                    <TitleCell
+                      title={a.jobSite?.name ?? '—'}
+                      subtitle={assignmentCustomerLabel(a)}
+                    />
                   </Td>
                   <Td>
                     <DateCell value={a.assignedDate} />
